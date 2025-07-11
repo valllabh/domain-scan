@@ -1,0 +1,35 @@
+# Domain-scan default configuration
+discovery:
+  max_subdomains: 1000
+  timeout: 10
+  threads: 50
+  passive_enabled: true
+  certificate_enabled: true
+  http_enabled: true
+
+ports:
+  default: [80, 443, 8080, 8443, 3000, 8000, 8888]
+  web: [80, 443, 8080, 8443]
+  dev: [3000, 8000, 8888, 9000]
+  enterprise: [80, 443, 8080, 8443, 8000, 9000, 8443]
+  
+keywords:
+  - api
+  - admin
+  - dev
+  - staging
+  - test
+
+profiles:
+  quick:
+    max_subdomains: 100
+    ports: [80, 443]
+    timeout: 5
+  comprehensive:
+    max_subdomains: 5000
+    ports: [80, 443, 8080, 8443, 3000, 8000, 8888, 9000]
+    timeout: 15
+
+dependencies:
+  auto_install: true
+  check_paths: true
