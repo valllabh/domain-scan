@@ -13,8 +13,8 @@ jobs:
   test:
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        go-version: ['1.21', '1.22', '1.23', '1.24']
+        os: [ubuntu-latest, macos-latest]
+        go-version: ['1.22', '1.23']  # Current stable and previous stable
     runs-on: ${{ matrix.os }}
     
     steps:
@@ -46,7 +46,7 @@ jobs:
       run: go test -v -race -coverprofile=coverage.out ./...
 
     - name: Upload coverage to Codecov
-      if: matrix.os == 'ubuntu-latest' && matrix.go-version == '1.24'
+      if: matrix.os == 'ubuntu-latest' && matrix.go-version == '1.23'
       uses: codecov/codecov-action@v4
       with:
         file: ./coverage.out
@@ -62,7 +62,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.24'
+        go-version: 'stable'
 
     - name: Run golangci-lint
       uses: golangci/golangci-lint-action@v4
@@ -79,12 +79,12 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.24'
+        go-version: 'stable'
 
     - name: Run Gosec Security Scanner
-      uses: securecodewarrior/github-action-gosec@master
-      with:
-        args: './...'
+      run: |
+        curl -sfL https://raw.githubusercontent.com/securego/gosec/master/install.sh | sh -s -- -b $(go env GOPATH)/bin
+        gosec ./...
 
     - name: Run govulncheck
       run: |
@@ -103,7 +103,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.24'
+        go-version: 'stable'
 
     - name: Build snapshots
       uses: goreleaser/goreleaser-action@v5

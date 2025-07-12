@@ -13,7 +13,6 @@ builds:
       - CGO_ENABLED=0
     goos:
       - linux
-      - windows
       - darwin
     goarch:
       - amd64
@@ -23,9 +22,7 @@ builds:
       - 6
       - 7
     ignore:
-      - goos: windows
-        goarch: arm64
-      - goos: windows
+      - goos: darwin
         goarch: arm
     flags:
       - -trimpath
@@ -45,9 +42,6 @@ archives:
       {{- else if eq .Arch "386" }}i386
       {{- else }}{{ .Arch }}{{ end }}
       {{- if .Arm }}v{{ .Arm }}{{ end }}
-    format_overrides:
-      - goos: windows
-        format: zip
     files:
       - README.md
       - config.yaml

@@ -1,33 +1,40 @@
+# Dependabot configuration for automated dependency updates
 version: 2
 updates:
-  # Enable version updates for Go modules
-  - package-ecosystem: "gomod"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "09:00"
-    open-pull-requests-limit: 10
-    reviewers:
-      - "domain-scan/maintainers"
-    assignees:
-      - "domain-scan/maintainers"
-    commit-message:
-      prefix: "deps"
-      include: "scope"
-
-  # Enable version updates for GitHub Actions
+  # GitHub Actions dependencies
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
-      time: "09:00"
+      time: "06:00"
     open-pull-requests-limit: 5
-    reviewers:
-      - "domain-scan/maintainers"
-    assignees:
-      - "domain-scan/maintainers"
     commit-message:
       prefix: "ci"
       include: "scope"
+    labels:
+      - "dependencies"
+      - "github-actions"
+
+  # Go module dependencies
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "go"
+    # Group patch updates to reduce noise
+    groups:
+      minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"

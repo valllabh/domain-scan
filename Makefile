@@ -183,7 +183,7 @@ bench:
 # Security scan
 security:
 	@echo "Running security scan..."
-	@which gosec > /dev/null || (echo "Installing gosec..." && go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest)
+	@which gosec > /dev/null || (echo "Installing gosec..." && curl -sfL https://raw.githubusercontent.com/securego/gosec/master/install.sh | sh -s -- -b $(go env GOPATH)/bin)
 	gosec ./...
 
 # Vulnerability check
