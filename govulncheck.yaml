@@ -1,0 +1,21 @@
+# Vulnerability Exceptions for domain-scan
+# 
+# This file documents known vulnerabilities that have been reviewed and accepted
+# due to no available fix or acceptable risk level.
+
+# ACCEPTED VULNERABILITIES:
+# 
+# GO-2024-2698 - Archiver Path Traversal vulnerability
+# Module: github.com/mholt/archiver/v3@v3.5.1
+# Status: No fix available from maintainer
+# Risk Assessment: LOW
+# Justification: 
+#   - Used only indirectly through ProjectDiscovery httpx/tlsx tools
+#   - Only used for certificate analysis, not file extraction
+#   - Path traversal risk is limited to security tool functionality
+#   - This is a defensive security tool, not production application
+# Reviewed: 2025-01-12
+# Next Review: 2025-06-12 (every 6 months)
+#
+# To suppress this vulnerability warning, use: make vuln-check
+# To see all vulnerabilities including exceptions: make vuln-all

@@ -187,12 +187,21 @@ security:
 	@curl -sfL https://raw.githubusercontent.com/securego/gosec/master/install.sh | sh -s -- -b $(go env GOPATH)/bin
 	gosec ./...
 
-# Vulnerability check
+# Vulnerability check (shows all vulnerabilities including accepted ones)
 vuln:
 	@echo "Checking for vulnerabilities..."
 	@echo "Installing/updating latest govulncheck..."
 	@go install golang.org/x/vuln/cmd/govulncheck@latest
 	govulncheck ./...
+
+# Vulnerability check with exceptions (filtered for actionable vulnerabilities only)
+vuln-check:
+	@echo "Installing/updating latest govulncheck..."
+	@go install golang.org/x/vuln/cmd/govulncheck@latest
+	@./scripts/vuln-check.sh
+
+# Show all vulnerabilities including exceptions (alias for vuln)
+vuln-all: vuln
 
 # Update dependencies
 update:
@@ -227,6 +236,8 @@ help:
 	@echo "  init          - Initialize development environment"
 	@echo "  bench         - Run benchmark tests"
 	@echo "  security      - Run security scan"
-	@echo "  vuln          - Check for vulnerabilities"
+	@echo "  vuln          - Check for vulnerabilities (shows all)"
+	@echo "  vuln-check    - Check for actionable vulnerabilities (excludes documented exceptions)"
+	@echo "  vuln-all      - Show all vulnerabilities including exceptions"
 	@echo "  update        - Update dependencies"
 	@echo "  help          - Show this help message"

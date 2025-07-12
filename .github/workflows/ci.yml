@@ -89,7 +89,7 @@ jobs:
     - name: Run govulncheck
       run: |
         go install golang.org/x/vuln/cmd/govulncheck@latest
-        govulncheck ./...
+        ./scripts/vuln-check.sh
 
   build:
     runs-on: ubuntu-latest
