@@ -87,10 +87,6 @@ release:
     sudo rpm -i domain-scan_amd64.rpm
     ```
     
-    ### Docker
-    ```bash
-    docker run --rm ghcr.io/domain-scan/domain-scan:{{.Tag}} --help
-    ```
 
 brews:
   - name: domain-scan
@@ -128,47 +124,3 @@ nfpms:
       - deb
       - rpm
 
-dockers:
-  - image_templates:
-      - "ghcr.io/domain-scan/domain-scan:{{ .Version }}-amd64"
-      - "ghcr.io/domain-scan/domain-scan:latest-amd64"
-    dockerfile: Dockerfile
-    use: buildx
-    build_flag_templates:
-      - "--pull"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-      - "--label=org.opencontainers.image.source={{.GitURL}}"
-      - "--label=org.opencontainers.image.description=Comprehensive domain asset discovery tool"
-      - "--platform=linux/amd64"
-    extra_files:
-      - config.yaml
-  - image_templates:
-      - "ghcr.io/domain-scan/domain-scan:{{ .Version }}-arm64v8"
-      - "ghcr.io/domain-scan/domain-scan:latest-arm64v8"
-    dockerfile: Dockerfile
-    use: buildx
-    build_flag_templates:
-      - "--pull"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-      - "--label=org.opencontainers.image.source={{.GitURL}}"
-      - "--label=org.opencontainers.image.description=Comprehensive domain asset discovery tool"
-      - "--platform=linux/arm64/v8"
-    goarch: arm64
-    extra_files:
-      - config.yaml
-
-docker_manifests:
-  - name_template: "ghcr.io/domain-scan/domain-scan:{{ .Version }}"
-    image_templates:
-      - "ghcr.io/domain-scan/domain-scan:{{ .Version }}-amd64"
-      - "ghcr.io/domain-scan/domain-scan:{{ .Version }}-arm64v8"
-  - name_template: "ghcr.io/domain-scan/domain-scan:latest"
-    image_templates:
-      - "ghcr.io/domain-scan/domain-scan:latest-amd64"
-      - "ghcr.io/domain-scan/domain-scan:latest-arm64v8"

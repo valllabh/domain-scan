@@ -21,7 +21,7 @@ GOFMT=gofmt
 BUILD_DIR=build
 DIST_DIR=dist
 
-.PHONY: all build clean test deps fmt lint install uninstall release snapshot docker help
+.PHONY: all build clean test deps fmt lint install uninstall release snapshot help
 
 # Default target
 all: clean fmt test build
@@ -146,16 +146,6 @@ snapshot:
 	@which goreleaser > /dev/null || (echo "Installing goreleaser..." && go install github.com/goreleaser/goreleaser@latest)
 	goreleaser release --snapshot --clean
 
-# Docker build
-docker:
-	@echo "Building Docker image..."
-	docker build -t ${BINARY_NAME}:${VERSION} .
-	docker build -t ${BINARY_NAME}:latest .
-
-# Docker run
-docker-run:
-	@echo "Running Docker container..."
-	docker run --rm -it ${BINARY_NAME}:latest
 
 # Generate documentation
 docs:
@@ -230,8 +220,6 @@ help:
 	@echo "  dev           - Build development version"
 	@echo "  release       - Create release using GoReleaser"
 	@echo "  snapshot      - Create snapshot release"
-	@echo "  docker        - Build Docker image"
-	@echo "  docker-run    - Run Docker container"
 	@echo "  docs          - Generate documentation"
 	@echo "  init          - Initialize development environment"
 	@echo "  bench         - Run benchmark tests"
