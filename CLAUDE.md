@@ -49,6 +49,23 @@ make build-all
 make dev
 ```
 
+### Running During Development
+```bash
+# Run with custom arguments
+make run ARGS="discover example.com --profile quick"
+
+# Quick shortcuts for common commands
+make run-help          # Show help
+make run-discover      # Test discovery with example.com
+make run-config        # Show current configuration
+make run-install       # Install dependencies
+
+# Examples of custom runs
+make run ARGS="discover example.com --keywords staging,prod --ports 80,443"
+make run ARGS="discover multiple.com domains.com --profile comprehensive"
+make run ARGS="config --help"
+```
+
 ### Testing
 ```bash
 # Run all tests with coverage
@@ -126,7 +143,7 @@ scanner := domainscan.New(config)
 
 req := &domainscan.ScanRequest{
     Domains:        []string{"example.com"},
-    Keywords:       []string{"api", "admin"},
+    Keywords:       []string{}, // Keywords are extracted from domains automatically
     Ports:          []int{80, 443, 8080},
     MaxSubdomains:  1000,
     EnablePassive:  true,
@@ -143,7 +160,7 @@ result, err := scanner.ScanWithOptions(ctx, req)
 - **discovery.timeout**: Per-request timeout for HTTP operations
 - **discovery.threads**: Concurrency level for HTTP scanning
 - **ports.default**: Default ports for HTTP service verification
-- **keywords**: Keywords for subdomain filtering (auto-extracted from domains if not specified)
+- **keywords**: Keywords for filtering SSL certificate domains by organizational relevance (auto-extracted from domains if not specified)
 
 ## Testing Strategy
 
@@ -151,6 +168,42 @@ result, err := scanner.ScanWithOptions(ctx, req)
 - Integration tests that check for external tool availability
 - Conditional test skipping when dependencies are missing
 - Test coverage includes edge cases like missing tools and invalid inputs
+
+## Release Process
+
+The project uses automated releases via GitHub Actions and GoReleaser:
+
+### Creating Releases
+```bash
+# Create and push a new tag to trigger release
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+### Release Workflow
+- Tests run automatically on tag push
+- Cross-platform binaries are built (Linux, macOS, Windows)
+- Packages are created (DEB, RPM, APK)
+- Docker images are built for multiple architectures
+- GitHub release is created with changelog
+- Homebrew formula is updated automatically
+
+### Available Installation Methods
+- Direct binary download from GitHub releases
+- Package managers (Homebrew, APT, RPM, Alpine)
+- Docker images on GitHub Container Registry
+- Go install for source builds
+
+### Testing Releases
+```bash
+# Test GoReleaser configuration
+goreleaser check
+
+# Create snapshot build locally
+make snapshot
+
+# Use GitHub Actions test workflow for validation
+```
 
 ## Security Considerations
 

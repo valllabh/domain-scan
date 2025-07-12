@@ -146,7 +146,7 @@ Perform domain asset discovery.
 **Request Body:**
 {
   "domains": ["example.com"],
-  "keywords": ["api", "admin"],  // optional
+  "keywords": ["staging", "prod"],  // optional, combined with auto-extracted
   "ports": [80, 443, 8080],      // optional
   "max_subdomains": 1000,        // optional
   "profile": "quick"             // optional: quick, comprehensive
@@ -182,7 +182,7 @@ curl -X POST http://localhost:8080/scan \
   -H "Content-Type: application/json" \
   -d '{
     "domains": ["example.com"],
-    "keywords": ["api", "admin", "dev"],
+    "keywords": ["staging", "prod"],
     "ports": [80, 443, 8080, 3000],
     "max_subdomains": 500
   }'

@@ -95,11 +95,38 @@ uninstall:
 	@echo "Uninstalling ${BINARY_NAME} from ${GOPATH}/bin..."
 	rm -f ${GOPATH}/bin/${BINARY_NAME}
 
-# Run the application
+# Run the application with arguments
+# Usage: make run ARGS="discover example.com --profile quick"
 run:
-	@echo "Running ${BINARY_NAME}..."
+	@echo "Running ${BINARY_NAME} with args: $(ARGS)"
+	@mkdir -p ${BUILD_DIR}
 	$(GOBUILD) $(LDFLAGS) -o ${BUILD_DIR}/${BINARY_NAME} ${MAIN_FILE}
-	./${BUILD_DIR}/${BINARY_NAME}
+	./${BUILD_DIR}/${BINARY_NAME} $(ARGS)
+
+# Quick run shortcuts for common development tasks
+run-help:
+	@echo "Running ${BINARY_NAME} --help..."
+	@mkdir -p ${BUILD_DIR}
+	$(GOBUILD) $(LDFLAGS) -o ${BUILD_DIR}/${BINARY_NAME} ${MAIN_FILE}
+	./${BUILD_DIR}/${BINARY_NAME} --help
+
+run-discover:
+	@echo "Running discover command with example.com..."
+	@mkdir -p ${BUILD_DIR}
+	$(GOBUILD) $(LDFLAGS) -o ${BUILD_DIR}/${BINARY_NAME} ${MAIN_FILE}
+	./${BUILD_DIR}/${BINARY_NAME} discover example.com --profile quick
+
+run-config:
+	@echo "Running config command..."
+	@mkdir -p ${BUILD_DIR}
+	$(GOBUILD) $(LDFLAGS) -o ${BUILD_DIR}/${BINARY_NAME} ${MAIN_FILE}
+	./${BUILD_DIR}/${BINARY_NAME} config
+
+run-install:
+	@echo "Running install command..."
+	@mkdir -p ${BUILD_DIR}
+	$(GOBUILD) $(LDFLAGS) -o ${BUILD_DIR}/${BINARY_NAME} ${MAIN_FILE}
+	./${BUILD_DIR}/${BINARY_NAME} install
 
 # Development build (no optimization)
 dev:
@@ -184,7 +211,11 @@ help:
 	@echo "  lint          - Lint code"
 	@echo "  install       - Install binary to GOPATH/bin"
 	@echo "  uninstall     - Uninstall binary from GOPATH/bin"
-	@echo "  run           - Build and run the application"
+	@echo "  run           - Build and run the application (use ARGS='...' to pass arguments)"
+	@echo "  run-help      - Run application with --help"
+	@echo "  run-discover  - Run quick discovery on example.com"
+	@echo "  run-config    - Run config command"
+	@echo "  run-install   - Run install command"
 	@echo "  dev           - Build development version"
 	@echo "  release       - Create release using GoReleaser"
 	@echo "  snapshot      - Create snapshot release"

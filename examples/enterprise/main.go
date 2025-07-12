@@ -23,7 +23,7 @@ func main() {
 		Ports: domainscan.PortConfig{
 			Custom: []int{80, 443, 8080, 8443, 9000, 8000, 3000, 8888},
 		},
-		Keywords: []string{"intranet", "internal", "corp", "portal", "admin", "api", "staging", "dev"},
+		Keywords: []string{}, // Keywords are extracted from domains automatically
 		Dependencies: domainscan.DependencyConfig{
 			AutoInstall: true,
 			CheckPaths:  true,
@@ -102,9 +102,9 @@ func generateEnterpriseReport(result *domainscan.AssetDiscoveryResult) {
 		fmt.Println()
 	}
 
-	// High-value targets (admin, api, etc.)
+	// High-value targets (example keywords for demonstration)
 	fmt.Printf("🎯 High-Value Targets:\n")
-	highValueKeywords := []string{"admin", "api", "portal", "intranet", "internal"}
+	highValueKeywords := []string{"portal", "intranet", "internal"}
 	for _, service := range result.ActiveServices {
 		for _, keyword := range highValueKeywords {
 			if containsKeyword(service.URL, keyword) {

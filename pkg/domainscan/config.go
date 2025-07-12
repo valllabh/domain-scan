@@ -57,7 +57,7 @@ func DefaultConfig() *Config {
 				"comprehensive": {80, 443, 8080, 8443, 3000, 8000, 8888, 9000},
 			},
 		},
-		Keywords: []string{"api", "admin", "dev", "staging", "test"},
+		Keywords: []string{},
 		Dependencies: DependencyConfig{
 			AutoInstall: true,
 			CheckPaths:  true,

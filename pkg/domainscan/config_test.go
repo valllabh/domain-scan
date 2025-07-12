@@ -43,10 +43,9 @@ func TestDefaultConfig(t *testing.T) {
 		t.Errorf("Expected %d default ports, got %d", len(expectedDefaultPorts), len(config.Ports.Default))
 	}
 	
-	// Test keywords defaults
-	expectedKeywords := []string{"api", "admin", "dev", "staging", "test"}
-	if len(config.Keywords) != len(expectedKeywords) {
-		t.Errorf("Expected %d default keywords, got %d", len(expectedKeywords), len(config.Keywords))
+	// Test keywords defaults (should be empty by default)
+	if len(config.Keywords) != 0 {
+		t.Errorf("Expected 0 default keywords, got %d", len(config.Keywords))
 	}
 	
 	// Test dependencies defaults

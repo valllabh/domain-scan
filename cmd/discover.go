@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/domain-scan/domain-scan/pkg/domainscan"
+	"github.com/domain-scan/domain-scan/pkg/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -34,18 +35,23 @@ var discoverCmd = &cobra.Command{
 	Short: "Discover web assets for specified domains",
 	Long: `Discover performs comprehensive web asset discovery including:
 - Passive subdomain enumeration using subfinder
-- TLS certificate analysis for additional subdomains
+- TLS certificate analysis for additional subdomains with organizational filtering
 - HTTP/HTTPS service verification on specified ports
 
-The results include all discovered subdomains and active web services.`,
+The results include all discovered subdomains and active web services.
+
+Keywords are used to filter domains found in SSL certificates to exclude domains 
+from other organizations in shared certificates. For example, if a target domain 
+uses a third-party service that has other organizations' domains in the same 
+certificate, keywords ensure only relevant domains are included in results.`,
 	Example: `  # Basic discovery
   domain-scan discover example.com
 
   # Use a specific profile
   domain-scan discover example.com --profile quick
 
-  # Custom keywords and ports
-  domain-scan discover example.com --keywords api,admin,dev --ports 80,443,8080
+  # Additional keywords (combined with auto-extracted) and custom ports
+  domain-scan discover example.com --keywords staging,prod --ports 80,443,8080
 
   # Output to file in JSON format
   domain-scan discover example.com --output results.json --format json
@@ -60,7 +66,7 @@ func init() {
 	rootCmd.AddCommand(discoverCmd)
 
 	// Discovery flags
-	discoverCmd.Flags().StringSliceVarP(&keywords, "keywords", "k", []string{}, "Keywords for filtering (comma-separated)")
+	discoverCmd.Flags().StringSliceVarP(&keywords, "keywords", "k", []string{}, "Additional keywords for filtering SSL certificate domains (auto-extracted from domains and combined with provided keywords)")
 	discoverCmd.Flags().IntSliceVarP(&ports, "ports", "p", []int{}, "Ports to scan (comma-separated)")
 	discoverCmd.Flags().IntVar(&maxSubdomains, "max-subdomains", 0, "Maximum subdomains to scan for HTTP services")
 	discoverCmd.Flags().IntVar(&timeout, "timeout", 0, "Timeout in seconds")
@@ -97,7 +103,7 @@ func runDiscover(cmd *cobra.Command, args []string) error {
 
 	// Create scanner
 	scanner := domainscan.New(config)
-	
+
 	// Set quiet mode
 	if quiet {
 		scanner.SetLogger(&quietLogger{})
@@ -115,10 +121,35 @@ func runDiscover(cmd *cobra.Command, args []string) error {
 		EnableHTTPScan: getEnableHTTP(cmd),
 	}
 
-	// Apply keywords from config if not specified
-	if len(req.Keywords) == 0 {
-		req.Keywords = config.Keywords
+	// Extract keywords from domains automatically
+	extractedKeywords := utils.ExtractKeywordsFromDomains(req.Domains)
+	
+	// Combine extracted keywords with manually provided keywords and config keywords
+	keywordMap := make(map[string]bool)
+	
+	// Add extracted keywords first
+	for _, keyword := range extractedKeywords {
+		keywordMap[keyword] = true
 	}
+	
+	// Add manually provided keywords (from --keywords flag)
+	for _, keyword := range req.Keywords {
+		keywordMap[keyword] = true
+	}
+	
+	// Add config keywords if no manual keywords were provided
+	if len(keywords) == 0 {
+		for _, keyword := range config.Keywords {
+			keywordMap[keyword] = true
+		}
+	}
+	
+	// Convert back to slice
+	var finalKeywords []string
+	for keyword := range keywordMap {
+		finalKeywords = append(finalKeywords, keyword)
+	}
+	req.Keywords = finalKeywords
 
 	// Run discovery
 	ctx := context.Background()
@@ -262,4 +293,4 @@ func outputResults(result *domainscan.AssetDiscoveryResult) error {
 type quietLogger struct{}
 
 func (q *quietLogger) Printf(format string, v ...interface{}) {}
-func (q *quietLogger) Println(v ...interface{})              {}
+func (q *quietLogger) Println(v ...interface{})               {}

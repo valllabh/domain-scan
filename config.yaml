@@ -13,12 +13,7 @@ ports:
   dev: [3000, 8000, 8888, 9000]
   enterprise: [80, 443, 8080, 8443, 8000, 9000, 8443]
   
-keywords:
-  - api
-  - admin
-  - dev
-  - staging
-  - test
+keywords: []
 
 profiles:
   quick:

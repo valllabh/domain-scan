@@ -39,7 +39,7 @@ var configSetCmd = &cobra.Command{
 Examples:
   domain-scan config set discovery.max_subdomains 2000
   domain-scan config set ports.custom [80,443,8080]
-  domain-scan config set keywords [api,admin,dev]`,
+  domain-scan config set keywords [example,mycompany]`,
 	Args: cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return setConfig(args[0], args[1])
@@ -203,12 +203,7 @@ ports:
   dev: [3000, 8000, 8888, 9000]
   enterprise: [80, 443, 8080, 8443, 8000, 9000, 8443]
   
-keywords:
-  - api
-  - admin
-  - dev
-  - staging
-  - test
+keywords: []
 
 profiles:
   quick:
