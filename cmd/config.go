@@ -143,7 +143,7 @@ func editConfig() error {
 		configDir := filepath.Join(home, ".domain-scan")
 		configFile = filepath.Join(configDir, "config.yaml")
 		
-		if err := os.MkdirAll(configDir, 0755); err != nil {
+		if err := os.MkdirAll(configDir, 0750); err != nil {
 			return fmt.Errorf("failed to create config directory: %w", err)
 		}
 		
@@ -171,7 +171,7 @@ func initConfigFile() error {
 	configDir := filepath.Join(home, ".domain-scan")
 	configFile := filepath.Join(configDir, "config.yaml")
 	
-	if err := os.MkdirAll(configDir, 0755); err != nil {
+	if err := os.MkdirAll(configDir, 0750); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
 	
@@ -220,7 +220,7 @@ dependencies:
   check_paths: true
 `
 
-	return os.WriteFile(filename, []byte(defaultConfig), 0644)
+	return os.WriteFile(filename, []byte(defaultConfig), 0600)
 }
 
 func runEditor(editor, filename string) error {

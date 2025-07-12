@@ -26,9 +26,13 @@ func PassiveDiscovery(ctx context.Context, domains []string) ([]string, error) {
 
 	// Write domains to temp file
 	for _, domain := range domains {
-		tmpFile.WriteString(domain + "\n")
+		if _, err := tmpFile.WriteString(domain + "\n"); err != nil {
+			return nil, fmt.Errorf("failed to write domain to temp file: %w", err)
+		}
 	}
-	tmpFile.Close()
+	if err := tmpFile.Close(); err != nil {
+		return nil, fmt.Errorf("failed to close temp file: %w", err)
+	}
 
 	// Find subfinder binary
 	subfinderPath, err := findBinary("subfinder")

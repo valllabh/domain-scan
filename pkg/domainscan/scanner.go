@@ -27,7 +27,9 @@ func New(config *Config) *Scanner {
 	if config == nil {
 		config = DefaultConfig()
 	}
-	config.Validate()
+	if err := config.Validate(); err != nil {
+		log.Printf("Warning: config validation failed: %v", err)
+	}
 
 	return &Scanner{
 		config: config,

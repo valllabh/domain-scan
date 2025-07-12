@@ -44,9 +44,13 @@ func HTTPServiceScan(ctx context.Context, subdomains []string, ports []int) ([]t
 	defer os.Remove(tmpFile.Name())
 
 	for _, target := range targets {
-		tmpFile.WriteString(target + "\n")
+		if _, err := tmpFile.WriteString(target + "\n"); err != nil {
+			return nil, fmt.Errorf("failed to write target to temp file: %w", err)
+		}
 	}
-	tmpFile.Close()
+	if err := tmpFile.Close(); err != nil {
+		return nil, fmt.Errorf("failed to close temp file: %w", err)
+	}
 
 	// Find httpx binary
 	httpxPath, err := findHTTPXBinary()

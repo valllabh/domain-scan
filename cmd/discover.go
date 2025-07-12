@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 	"time"
@@ -87,11 +88,21 @@ func init() {
 	discoverCmd.Flags().Bool("no-http", false, "Disable HTTP service verification")
 
 	// Bind flags to viper
-	viper.BindPFlag("discovery.max_subdomains", discoverCmd.Flags().Lookup("max-subdomains"))
-	viper.BindPFlag("discovery.timeout", discoverCmd.Flags().Lookup("timeout"))
-	viper.BindPFlag("discovery.threads", discoverCmd.Flags().Lookup("threads"))
-	viper.BindPFlag("keywords", discoverCmd.Flags().Lookup("keywords"))
-	viper.BindPFlag("ports.custom", discoverCmd.Flags().Lookup("ports"))
+	if err := viper.BindPFlag("discovery.max_subdomains", discoverCmd.Flags().Lookup("max-subdomains")); err != nil {
+		log.Printf("Warning: failed to bind max-subdomains flag: %v", err)
+	}
+	if err := viper.BindPFlag("discovery.timeout", discoverCmd.Flags().Lookup("timeout")); err != nil {
+		log.Printf("Warning: failed to bind timeout flag: %v", err)
+	}
+	if err := viper.BindPFlag("discovery.threads", discoverCmd.Flags().Lookup("threads")); err != nil {
+		log.Printf("Warning: failed to bind threads flag: %v", err)
+	}
+	if err := viper.BindPFlag("keywords", discoverCmd.Flags().Lookup("keywords")); err != nil {
+		log.Printf("Warning: failed to bind keywords flag: %v", err)
+	}
+	if err := viper.BindPFlag("ports.custom", discoverCmd.Flags().Lookup("ports")); err != nil {
+		log.Printf("Warning: failed to bind ports flag: %v", err)
+	}
 }
 
 func runDiscover(cmd *cobra.Command, args []string) error {
@@ -282,7 +293,7 @@ func outputResults(result *domainscan.AssetDiscoveryResult) error {
 	}
 
 	if outputFile != "" {
-		return os.WriteFile(outputFile, output, 0644)
+		return os.WriteFile(outputFile, output, 0600)
 	}
 
 	fmt.Print(string(output))

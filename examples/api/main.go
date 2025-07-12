@@ -117,7 +117,9 @@ func handleScan(scanner *domainscan.Scanner) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -129,7 +131,9 @@ func handleHealth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(health)
+	if err := json.NewEncoder(w).Encode(health); err != nil {
+		http.Error(w, "Failed to encode health response", http.StatusInternalServerError)
+	}
 }
 
 func handleRoot(w http.ResponseWriter, r *http.Request) {
@@ -189,7 +193,9 @@ curl -X POST http://localhost:8080/scan \
 `
 
 	w.Header().Set("Content-Type", "text/plain")
-	w.Write([]byte(docs))
+	if _, err := w.Write([]byte(docs)); err != nil {
+		http.Error(w, "Failed to write documentation", http.StatusInternalServerError)
+	}
 }
 
 func sendErrorResponse(w http.ResponseWriter, message string, statusCode int) {
@@ -200,5 +206,7 @@ func sendErrorResponse(w http.ResponseWriter, message string, statusCode int) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(response)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf("Failed to encode error response: %v", err)
+	}
 }
