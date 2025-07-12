@@ -1,42 +1,58 @@
 # Subdomain Finder
 
-[![CI](https://github.com/domain-scan/domain-scan/workflows/CI/badge.svg)](https://github.com/domain-scan/domain-scan/actions/workflows/ci.yml)
-[![Release](https://github.com/domain-scan/domain-scan/workflows/Release/badge.svg)](https://github.com/domain-scan/domain-scan/actions/workflows/release.yml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/domain-scan/domain-scan)](https://goreportcard.com/report/github.com/domain-scan/domain-scan)
+[![CI](https://github.com/valllabh/domain-scan/actions/workflows/ci.yml/badge.svg)](https://github.com/valllabh/domain-scan/actions/workflows/ci.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/valllabh/domain-scan)](https://goreportcard.com/report/github.com/valllabh/domain-scan)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![GitHub release (latest by date)](https://img.shields.io/github/v/release/domain-scan/domain-scan)](https://github.com/domain-scan/domain-scan/releases)
-[![Docker Pulls](https://img.shields.io/docker/pulls/domain-scan/domain-scan)](https://ghcr.io/domain-scan/domain-scan)
+[![GitHub release (latest by date)](https://img.shields.io/github/v/release/valllabh/domain-scan)](https://github.com/valllabh/domain-scan/releases)
 
 A comprehensive Go-based tool for discovering and verifying active subdomains through multiple techniques including passive enumeration, TLS certificate analysis, and HTTP service verification.
+
+## Built on Amazing Tools
+
+This project stands on the shoulders of giants and integrates the excellent work from [ProjectDiscovery](https://projectdiscovery.io):
+
+- **[subfinder](https://github.com/projectdiscovery/subfinder)** - Fast passive subdomain enumeration tool
+- **[httpx](https://github.com/projectdiscovery/httpx)** - Fast and multi-purpose HTTP toolkit
+
+### Why This Project Exists
+
+While `subfinder` and `httpx` are incredibly powerful tools on their own, this project provides:
+
+- **Unified Workflow**: Combines subdomain discovery, certificate analysis, and HTTP verification in one command
+- **Keyword-Based Filtering**: Automatically extracts organization keywords from domains to filter SSL certificate SANs
+- **Structured Output**: Provides consistent JSON/YAML output with detailed statistics and metadata
+- **Library Integration**: Offers a Go library for programmatic use in other security tools
+- **Profile-Based Scanning**: Pre-configured scanning profiles (quick, comprehensive) for different use cases
+- **Automated Dependency Management**: Handles tool installation and path resolution automatically
+
+**TL;DR**: This is a wrapper that orchestrates `subfinder` and `httpx` with additional logic for enterprise security workflows.
 
 ## Quick Start
 
 ```bash
 # Download and install
-curl -sSL https://github.com/domain-scan/domain-scan/releases/latest/download/domain-scan_$(uname -s)_$(uname -m).tar.gz | tar -xz
+curl -sSL https://github.com/valllabh/domain-scan/releases/latest/download/domain-scan_$(uname -s)_$(uname -m).tar.gz | tar -xz
 sudo mv domain-scan /usr/local/bin/
 
 # Run a basic scan
 domain-scan discover example.com
 
-# Or with Docker
-docker run --rm ghcr.io/domain-scan/domain-scan:latest discover example.com
-
 # Or with Homebrew
-brew install domain-scan/tap/domain-scan
+brew install valllabh/tap/domain-scan
 domain-scan discover example.com
 
 # For development (from source)
-git clone https://github.com/domain-scan/domain-scan.git
+git clone https://github.com/valllabh/domain-scan.git
 cd domain-scan
 make init && make run-discover
 ```
 
 ## Overview
 
-This tool performs comprehensive subdomain discovery and verification by combining multiple techniques:
-1. **Passive Discovery**: Uses subfinder to enumerate subdomains from passive sources
-2. **TLS Certificate Analysis**: Probes domains using httpx with TLS certificate inspection  
+This tool orchestrates [ProjectDiscovery's](https://projectdiscovery.io) security tools to perform comprehensive subdomain discovery and verification:
+
+1. **Passive Discovery**: Uses [subfinder](https://github.com/projectdiscovery/subfinder) to enumerate subdomains from passive sources
+2. **TLS Certificate Analysis**: Probes domains using [httpx](https://github.com/projectdiscovery/httpx) with TLS certificate inspection  
 3. **HTTP Service Verification**: Scans discovered subdomains for active HTTP/HTTPS services
 4. **Keyword Extraction**: Automatically extracts keywords from domain names
 5. **Keyword Filtering**: Filters domains from SSL certificates based on organizational relevance
@@ -47,9 +63,9 @@ This tool performs comprehensive subdomain discovery and verification by combini
 The tool combines three powerful techniques for comprehensive subdomain discovery and verification:
 
 ### 1. Subfinder Integration
-- Uses ProjectDiscovery's subfinder to query passive DNS sources
+- Uses [ProjectDiscovery's subfinder](https://github.com/projectdiscovery/subfinder) to query passive DNS sources
 - Discovers subdomains from certificate transparency logs, DNS records, and other sources
-- Provides comprehensive initial subdomain enumeration
+- Provides comprehensive initial subdomain enumeration without any active scanning
 
 ### 2. TLS Certificate Analysis
 - Inspects Subject Alternative Names (SANs) in SSL/TLS certificates
@@ -181,24 +197,25 @@ This tool can be used standalone or integrated with the main reconnaissance scri
 
 ## Dependencies
 
+This tool requires the amazing security tools from [ProjectDiscovery](https://projectdiscovery.io):
+
 ### Required Tools
-- `subfinder` - Must be installed and available in PATH
-- `httpx` - Must be installed and available in PATH
+- **[subfinder](https://github.com/projectdiscovery/subfinder)** - Fast passive subdomain enumeration tool
+- **[httpx](https://github.com/projectdiscovery/httpx)** - Fast and multi-purpose HTTP toolkit for probing and TLS inspection
 
-### Go Dependencies
-- `github.com/projectdiscovery/httpx/runner` - HTTP toolkit for probing and TLS inspection
-
-## Prerequisites
-
-Ensure required tools are installed:
+### Installation
+You can install these tools manually or use the built-in installer:
 
 ```bash
-# Install subfinder
-go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest
+# Option 1: Use built-in installer
+domain-scan install
 
-# Install httpx
+# Option 2: Manual installation
+go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest
 go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest
 ```
+
+💡 **Tip**: The tools must be available in your PATH. The built-in installer handles this automatically.
 
 ## Configuration
 
@@ -264,53 +281,37 @@ The tool provides real-time feedback through stderr:
 
 ### Binary Downloads
 
-Download the latest release for your platform from the [releases page](https://github.com/domain-scan/domain-scan/releases).
+Download the latest release for your platform from the [releases page](https://github.com/valllabh/domain-scan/releases).
 
 ### Package Managers
 
 #### Homebrew (macOS/Linux)
 ```bash
-brew install domain-scan/tap/domain-scan
+brew install valllabh/tap/domain-scan
 ```
 
 #### APT (Debian/Ubuntu)
 ```bash
-wget https://github.com/domain-scan/domain-scan/releases/latest/download/domain-scan_amd64.deb
+wget https://github.com/valllabh/domain-scan/releases/latest/download/domain-scan_amd64.deb
 sudo dpkg -i domain-scan_amd64.deb
 ```
 
 #### RPM (RHEL/CentOS/Fedora)
 ```bash
-wget https://github.com/domain-scan/domain-scan/releases/latest/download/domain-scan_amd64.rpm
+wget https://github.com/valllabh/domain-scan/releases/latest/download/domain-scan_amd64.rpm
 sudo rpm -i domain-scan_amd64.rpm
 ```
 
 #### Alpine Linux
 ```bash
-wget https://github.com/domain-scan/domain-scan/releases/latest/download/domain-scan_amd64.apk
+wget https://github.com/valllabh/domain-scan/releases/latest/download/domain-scan_amd64.apk
 sudo apk add --allow-untrusted domain-scan_amd64.apk
-```
-
-### Docker
-
-```bash
-# Run with Docker
-docker run --rm ghcr.io/domain-scan/domain-scan:latest --help
-
-# Basic domain discovery
-docker run --rm ghcr.io/domain-scan/domain-scan:latest discover example.com
-
-# With custom options
-docker run --rm ghcr.io/domain-scan/domain-scan:latest discover example.com --profile quick
-
-# Save results to file (using volume mount)
-docker run --rm -v $(pwd):/output ghcr.io/domain-scan/domain-scan:latest discover example.com --output /output/results.json --format json
 ```
 
 ### From Source
 
 ```bash
-go install github.com/domain-scan/domain-scan@latest
+go install github.com/valllabh/domain-scan@latest
 ```
 
 ## Testing
@@ -395,7 +396,7 @@ The project includes a comprehensive Makefile with targets for all development t
 #### Build Targets
 ```bash
 make build           # Build for current platform
-make build-all       # Build for multiple platforms (Linux, macOS, Windows)
+make build-all       # Build for multiple platforms (Linux, macOS)
 make dev             # Development build with race detection
 make clean           # Clean build artifacts
 ```
@@ -432,8 +433,6 @@ make update          # Update all dependencies
 ```bash
 make release         # Create release using GoReleaser
 make snapshot        # Create snapshot release for testing
-make docker          # Build Docker image
-make docker-run      # Run Docker container
 ```
 
 #### Installation
@@ -483,9 +482,8 @@ This project uses automated releases via GitHub Actions and [GoReleaser](https:/
    ```
 3. **GitHub Actions will automatically**:
    - Run all tests and quality checks
-   - Build binaries for multiple platforms (Linux, macOS, Windows)
+   - Build binaries for multiple platforms (Linux, macOS)
    - Create packages (DEB, RPM, APK)
-   - Build and push Docker images (multi-architecture)
    - Generate release notes and publish to GitHub
    - Update Homebrew formula
 
@@ -493,9 +491,8 @@ This project uses automated releases via GitHub Actions and [GoReleaser](https:/
 
 Each release automatically produces:
 
-- **Cross-platform binaries** for Linux, macOS, and Windows
+- **Cross-platform binaries** for Linux and macOS (Intel/ARM)
 - **Linux packages** (DEB, RPM, APK) for easy installation
-- **Docker images** for both amd64 and arm64 architectures
 - **Homebrew formula** for macOS and Linux users
 - **Checksums** for artifact verification
 
@@ -528,5 +525,48 @@ make snapshot
 
 **Installation Issues:**
 - For package installations, ensure you have appropriate permissions
-- For Docker, ensure the Docker daemon is running
 - For Homebrew, run `brew update` if the formula isn't found
+
+## Security
+
+This tool is designed for defensive security and authorized reconnaissance only. Please review our [Security Policy](SECURITY.md) for:
+
+- **Responsible usage guidelines**
+- **Vulnerability reporting process**
+- **Security best practices**
+- **Dependency security information**
+
+⚠️ **Important**: Only use this tool on systems you own or have explicit permission to test.
+
+## Contributing
+
+Contributions are welcome! Please:
+
+1. Read our [Security Policy](SECURITY.md) first
+2. Fork the repository
+3. Create a feature branch
+4. Make your changes with tests
+5. Run `make test` and `make lint` 
+6. Submit a pull request
+
+## Acknowledgments
+
+This project is built on the excellent work from the security community:
+
+### Core Dependencies
+- **[ProjectDiscovery](https://projectdiscovery.io)** - For creating amazing open source security tools
+  - **[subfinder](https://github.com/projectdiscovery/subfinder)** - Fast passive subdomain enumeration tool
+  - **[httpx](https://github.com/projectdiscovery/httpx)** - Fast and multi-purpose HTTP toolkit
+- **[Cobra](https://github.com/spf13/cobra)** - CLI framework for Go
+- **[Viper](https://github.com/spf13/viper)** - Configuration management for Go
+
+### Special Thanks
+- The [ProjectDiscovery](https://github.com/projectdiscovery) team for building the security tools that power this project
+- The Go security community for creating robust security tooling
+- All contributors who help improve this tool
+
+💖 **If you find this tool useful, please star the repositories of the amazing tools it depends on!**
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

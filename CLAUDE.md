@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-domain-scan is a comprehensive Go-based security tool for discovering and verifying active subdomains through multiple techniques including passive enumeration, TLS certificate analysis, and HTTP service verification. The tool is designed for defensive security purposes to help organizations understand their external attack surface.
+domain-scan is a comprehensive Go-based security tool that orchestrates [ProjectDiscovery's](https://projectdiscovery.io) excellent security tools ([subfinder](https://github.com/projectdiscovery/subfinder) and [httpx](https://github.com/projectdiscovery/httpx)) to discover and verify active subdomains through multiple techniques including passive enumeration, TLS certificate analysis, and HTTP service verification. The tool is designed for defensive security purposes to help organizations understand their external attack surface.
 
 ## Core Architecture
 
@@ -42,7 +42,7 @@ domain-scan is a comprehensive Go-based security tool for discovering and verify
 # Build for current platform
 make build
 
-# Build for all platforms
+# Build for all platforms (Linux, macOS)
 make build-all
 
 # Development build with race detection
@@ -89,8 +89,11 @@ make lint
 # Security scan
 make security
 
-# Vulnerability check
+# Vulnerability check (shows all vulnerabilities)
 make vuln
+
+# Vulnerability check (excluding documented exceptions)
+make vuln-check
 ```
 
 ### Dependencies
@@ -116,9 +119,9 @@ make release
 
 ## External Dependencies
 
-The tool requires these external security tools to be installed:
-- **subfinder** - For passive subdomain enumeration from multiple sources
-- **httpx** - For HTTP probing and TLS certificate analysis
+The tool requires these excellent security tools from [ProjectDiscovery](https://projectdiscovery.io):
+- **[subfinder](https://github.com/projectdiscovery/subfinder)** - For passive subdomain enumeration from multiple sources
+- **[httpx](https://github.com/projectdiscovery/httpx)** - For HTTP probing and TLS certificate analysis
 
 Use `domain-scan install` to automatically install these dependencies, or install manually:
 ```bash
@@ -182,16 +185,14 @@ git push origin v1.0.0
 
 ### Release Workflow
 - Tests run automatically on tag push
-- Cross-platform binaries are built (Linux, macOS, Windows)
+- Cross-platform binaries are built (Linux, macOS)
 - Packages are created (DEB, RPM, APK)
-- Docker images are built for multiple architectures
 - GitHub release is created with changelog
 - Homebrew formula is updated automatically
 
 ### Available Installation Methods
 - Direct binary download from GitHub releases
 - Package managers (Homebrew, APT, RPM, Alpine)
-- Docker images on GitHub Container Registry
 - Go install for source builds
 
 ### Testing Releases
@@ -212,3 +213,14 @@ make snapshot
 - No exploitation or intrusive testing beyond basic HTTP requests
 - Respects rate limiting and timeouts to avoid overwhelming targets
 - Keywords and port lists can be customized to focus scanning scope
+
+**Important**: See [SECURITY.md](SECURITY.md) for comprehensive security policies, vulnerability reporting, and responsible usage guidelines.
+
+## Vulnerability Management
+
+The project uses automated security scanning:
+- `make security` - Runs gosec static analysis
+- `make vuln` - Shows all vulnerabilities including documented exceptions
+- `make vuln-check` - Shows only actionable vulnerabilities
+
+Known exceptions are documented in `govulncheck.yaml` with risk assessments and review schedules.

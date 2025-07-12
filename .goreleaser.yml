@@ -66,7 +66,7 @@ release:
   header: |
     ## Release {{.Version}}
     
-    **Full Changelog**: https://github.com/{{ .Env.GITHUB_REPOSITORY | default "domain-scan/domain-scan" }}/compare/{{ .PreviousTag }}...{{ .Tag }}
+    **Full Changelog**: https://github.com/{{ .Env.GITHUB_REPOSITORY | default "valllabh/domain-scan" }}/compare/{{ .PreviousTag }}...{{ .Tag }}
   footer: |
     ## Installation
     
@@ -76,14 +76,14 @@ release:
     ### Package Managers
     ```bash
     # Homebrew (macOS/Linux)
-    brew install domain-scan/tap/domain-scan
+    brew install valllabh/tap/domain-scan
     
     # APT (Debian/Ubuntu)
-    wget https://github.com/domain-scan/domain-scan/releases/download/{{.Tag}}/domain-scan_amd64.deb
+    wget https://github.com/valllabh/domain-scan/releases/download/{{.Tag}}/domain-scan_amd64.deb
     sudo dpkg -i domain-scan_amd64.deb
     
     # RPM (RHEL/CentOS/Fedora)
-    wget https://github.com/domain-scan/domain-scan/releases/download/{{.Tag}}/domain-scan_amd64.rpm
+    wget https://github.com/valllabh/domain-scan/releases/download/{{.Tag}}/domain-scan_amd64.rpm
     sudo rpm -i domain-scan_amd64.rpm
     ```
     
@@ -91,10 +91,10 @@ release:
 brews:
   - name: domain-scan
     repository:
-      owner: domain-scan
+      owner: valllabh
       name: homebrew-tap
     directory: Formula
-    homepage: https://github.com/domain-scan/domain-scan
+    homepage: https://github.com/valllabh/domain-scan
     description: "Comprehensive domain asset discovery tool"
     license: MIT
     test: |
@@ -105,7 +105,7 @@ brews:
 
 nfpms:
   - file_name_template: '{{ .ProjectName }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}'
-    homepage: https://github.com/domain-scan/domain-scan
+    homepage: https://github.com/valllabh/domain-scan
     description: |-
       Comprehensive domain asset discovery tool that combines
       passive subdomain enumeration, TLS certificate analysis,
