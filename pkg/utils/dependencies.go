@@ -51,7 +51,7 @@ func isDependencyInstalled(name string, checkPaths []string) bool {
 		httpxPath := goPath + "/bin/httpx"
 		if _, err := os.Stat(httpxPath); err == nil {
 			// Verify it's the correct httpx by checking help output
-			cmd := exec.Command(httpxPath, "-h")
+			cmd := exec.Command(httpxPath, "-h") // #nosec G204 - trusted tool path
 			output, err := cmd.Output()
 			if err == nil && strings.Contains(string(output), "projectdiscovery") {
 				return true
@@ -60,7 +60,7 @@ func isDependencyInstalled(name string, checkPaths []string) bool {
 		
 		// Check PATH but verify it's ProjectDiscovery's httpx
 		if path, err := exec.LookPath("httpx"); err == nil {
-			cmd := exec.Command(path, "-h")
+			cmd := exec.Command(path, "-h") // #nosec G204 - trusted tool from PATH
 			output, err := cmd.Output()
 			if err == nil && strings.Contains(string(output), "projectdiscovery") {
 				return true

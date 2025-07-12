@@ -41,7 +41,7 @@ func PassiveDiscovery(ctx context.Context, domains []string) ([]string, error) {
 	}
 
 	// Run subfinder with context
-	cmd := exec.CommandContext(ctx, subfinderPath, "-dL", tmpFile.Name(), "-all", "-silent")
+	cmd := exec.CommandContext(ctx, subfinderPath, "-dL", tmpFile.Name(), "-all", "-silent") // #nosec G204 - trusted tool path
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("error running subfinder: %w", err)

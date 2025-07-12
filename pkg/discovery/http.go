@@ -59,7 +59,7 @@ func HTTPServiceScan(ctx context.Context, subdomains []string, ports []int) ([]t
 	}
 
 	// Run httpx with context
-	cmd := exec.CommandContext(ctx, httpxPath, "-l", tmpFile.Name(), "-silent", "-status-code", "-timeout", "10", "-threads", "50")
+	cmd := exec.CommandContext(ctx, httpxPath, "-l", tmpFile.Name(), "-silent", "-status-code", "-timeout", "10", "-threads", "50") // #nosec G204 - trusted tool path
 	output, err := cmd.Output()
 	if err != nil {
 		if exitError, ok := err.(*exec.ExitError); ok {
@@ -98,7 +98,7 @@ func findHTTPXBinary() (string, error) {
 	httpxPath := goPath + "/bin/httpx"
 	if _, err := os.Stat(httpxPath); err == nil {
 		// Verify it's the correct httpx by checking help output
-		cmd := exec.Command(httpxPath, "-h")
+		cmd := exec.Command(httpxPath, "-h") // #nosec G204 - trusted tool path
 		output, err := cmd.Output()
 		if err == nil && strings.Contains(string(output), "projectdiscovery") {
 			return httpxPath, nil
@@ -107,7 +107,7 @@ func findHTTPXBinary() (string, error) {
 	
 	// Check PATH but verify it's ProjectDiscovery's httpx
 	if path, err := exec.LookPath("httpx"); err == nil {
-		cmd := exec.Command(path, "-h")
+		cmd := exec.Command(path, "-h") // #nosec G204 - trusted tool from PATH
 		output, err := cmd.Output()
 		if err == nil && strings.Contains(string(output), "projectdiscovery") {
 			return path, nil

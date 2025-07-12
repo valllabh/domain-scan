@@ -47,7 +47,8 @@ func main() {
   -H "Content-Type: application/json" \
   -d '{"domains": ["example.com"], "profile": "quick"}'`)
 
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	// Example server - in production, use server with timeouts
+	log.Fatal(http.ListenAndServe(":8080", nil)) // #nosec G114 - example code only
 }
 
 func handleScan(scanner *domainscan.Scanner) http.HandlerFunc {
