@@ -1,6 +1,6 @@
 module github.com/domain-scan/domain-scan
 
-go 1.24.2
+go 1.24.4
 
 require (
 	github.com/projectdiscovery/httpx v1.7.0
@@ -29,7 +29,7 @@ require (
 	github.com/charmbracelet/x/ansi v0.3.2 // indirect
 	github.com/cheggaaa/pb/v3 v3.1.4 // indirect
 	github.com/cloudflare/cfssl v1.6.4 // indirect
-	github.com/cloudflare/circl v1.3.8 // indirect
+	github.com/cloudflare/circl v1.6.1 // indirect
 	github.com/cnf/structhash v0.0.0-20201127153200-e1b16c1ebc08 // indirect
 	github.com/corona10/goimagehash v1.1.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
@@ -108,7 +108,7 @@ require (
 	github.com/projectdiscovery/useragent v0.0.99 // indirect
 	github.com/projectdiscovery/utils v0.4.18 // indirect
 	github.com/projectdiscovery/wappalyzergo v0.2.25 // indirect
-	github.com/refraction-networking/utls v1.6.7 // indirect
+	github.com/refraction-networking/utls v1.7.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/rs/xid v1.6.0 // indirect
 	github.com/sagikazarmark/locafero v0.7.0 // indirect

@@ -183,13 +183,15 @@ bench:
 # Security scan
 security:
 	@echo "Running security scan..."
-	@which gosec > /dev/null || (echo "Installing gosec..." && curl -sfL https://raw.githubusercontent.com/securego/gosec/master/install.sh | sh -s -- -b $(go env GOPATH)/bin)
+	@echo "Installing/updating latest gosec..."
+	@curl -sfL https://raw.githubusercontent.com/securego/gosec/master/install.sh | sh -s -- -b $(go env GOPATH)/bin
 	gosec ./...
 
 # Vulnerability check
 vuln:
 	@echo "Checking for vulnerabilities..."
-	@which govulncheck > /dev/null || (echo "Installing govulncheck..." && go install golang.org/x/vuln/cmd/govulncheck@latest)
+	@echo "Installing/updating latest govulncheck..."
+	@go install golang.org/x/vuln/cmd/govulncheck@latest
 	govulncheck ./...
 
 # Update dependencies

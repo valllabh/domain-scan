@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/domain-scan/domain-scan/pkg/domainscan"
@@ -132,5 +133,5 @@ func generateEnterpriseReport(result *domainscan.AssetDiscoveryResult) {
 
 func containsKeyword(url, keyword string) bool {
 	return len(url) > 0 && len(keyword) > 0 && 
-		   (url[0:1] != url[0:1]) // This is a placeholder - implement actual string contains logic
+		   strings.Contains(strings.ToLower(url), strings.ToLower(keyword))
 }

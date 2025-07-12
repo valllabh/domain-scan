@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"strconv"
@@ -41,7 +42,12 @@ func HTTPServiceScan(ctx context.Context, subdomains []string, ports []int) ([]t
 	if err != nil {
 		return nil, fmt.Errorf("error creating temp file for HTTP targets: %w", err)
 	}
-	defer os.Remove(tmpFile.Name())
+	defer func() {
+		if err := os.Remove(tmpFile.Name()); err != nil {
+			// Log error but don't fail the operation for temp file cleanup
+			log.Printf("Warning: failed to remove temp file %s: %v", tmpFile.Name(), err)
+		}
+	}()
 
 	for _, target := range targets {
 		if _, err := tmpFile.WriteString(target + "\n"); err != nil {
