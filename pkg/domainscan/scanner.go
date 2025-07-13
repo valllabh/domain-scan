@@ -18,8 +18,9 @@ type Logger interface {
 
 // Scanner represents the main domain asset discovery scanner
 type Scanner struct {
-	config *Config
-	logger Logger
+	config   *Config
+	logger   Logger
+	progress ProgressCallback
 }
 
 // New creates a new Scanner instance with the given configuration
@@ -42,6 +43,11 @@ func (s *Scanner) SetLogger(logger Logger) {
 	s.logger = logger
 }
 
+// SetProgressCallback sets a progress callback for the scanner
+func (s *Scanner) SetProgressCallback(callback ProgressCallback) {
+	s.progress = callback
+}
+
 // DiscoverAssets performs comprehensive domain asset discovery
 func (s *Scanner) DiscoverAssets(ctx context.Context, domains []string) (*AssetDiscoveryResult, error) {
 	req := DefaultScanRequest(domains)
@@ -62,7 +68,6 @@ func (s *Scanner) ScanWithOptions(ctx context.Context, req *ScanRequest) (*Asset
 		return nil, NewError(ErrInvalidConfig, "no domains provided", nil)
 	}
 
-	s.logger.Printf("🔍 Starting domain asset discovery for %d domains", len(req.Domains))
 	startTime := time.Now()
 
 	result := &AssetDiscoveryResult{
@@ -76,13 +81,19 @@ func (s *Scanner) ScanWithOptions(ctx context.Context, req *ScanRequest) (*Asset
 	// Step 1: Extract keywords if not provided
 	keywords := req.Keywords
 	if len(keywords) == 0 {
-		s.logger.Println("🔑 Extracting keywords from domain names")
 		keywords = utils.ExtractKeywordsFromDomains(req.Domains)
 	}
-	s.logger.Printf("🔑 Using keywords: %v", keywords)
+	
+	// Notify start of discovery
+	if s.progress != nil {
+		s.progress.OnDiscoveryStart(req.Domains, keywords)
+	}
 
 	// Check and install dependencies if needed
 	if s.config.Dependencies.AutoInstall {
+		if s.progress != nil {
+			s.progress.OnDependencyCheck()
+		}
 		if err := s.checkDependencies(ctx); err != nil {
 			result.Errors = append(result.Errors, err)
 			return result, err
@@ -98,26 +109,30 @@ func (s *Scanner) ScanWithOptions(ctx context.Context, req *ScanRequest) (*Asset
 
 	// Step 2: Passive subdomain discovery
 	if req.EnablePassive {
-		s.logger.Println("🔍 Starting passive subdomain discovery")
+		if s.progress != nil {
+			s.progress.OnPassiveDiscoveryStart()
+		}
 		subdomains, err := discovery.PassiveDiscovery(ctx, req.Domains)
 		if err != nil {
-			s.logger.Printf("⚠️  Passive discovery failed: %v", err)
 			result.Errors = append(result.Errors, NewError(ErrPassiveDiscoveryFailed, "passive discovery failed", err))
 		} else {
 			for _, subdomain := range subdomains {
 				allDomains[subdomain] = true
 			}
 			result.Statistics.PassiveResults = len(subdomains)
-			s.logger.Printf("📋 Passive discovery found %d subdomains", len(subdomains))
+		}
+		if s.progress != nil {
+			s.progress.OnPassiveDiscoveryComplete(subdomains, err)
 		}
 	}
 
 	// Step 3: TLS certificate analysis
 	if req.EnableCertScan {
-		s.logger.Println("🔐 Starting TLS certificate analysis")
+		if s.progress != nil {
+			s.progress.OnCertificateAnalysisStart()
+		}
 		tlsAssets, tlsSubdomains, err := discovery.CertificateAnalysis(ctx, req.Domains, keywords)
 		if err != nil {
-			s.logger.Printf("⚠️  Certificate analysis failed: %v", err)
 			result.Errors = append(result.Errors, NewError(ErrCertificateAnalysisFailed, "certificate analysis failed", err))
 		} else {
 			result.TLSAssets = tlsAssets
@@ -125,7 +140,9 @@ func (s *Scanner) ScanWithOptions(ctx context.Context, req *ScanRequest) (*Asset
 				allDomains[subdomain] = true
 			}
 			result.Statistics.CertificateResults = len(tlsSubdomains)
-			s.logger.Printf("🔐 Certificate analysis found %d additional subdomains", len(tlsSubdomains))
+		}
+		if s.progress != nil {
+			s.progress.OnCertificateAnalysisComplete(tlsAssets, tlsSubdomains, err)
 		}
 	}
 
@@ -139,24 +156,30 @@ func (s *Scanner) ScanWithOptions(ctx context.Context, req *ScanRequest) (*Asset
 
 	// Step 4: HTTP service verification
 	if req.EnableHTTPScan && len(allSubdomains) > 0 {
-		s.logger.Println("🌐 Starting HTTP service verification")
-		
 		// Apply subdomain limit
 		subdomainsToScan := allSubdomains
 		if req.MaxSubdomains > 0 && len(allSubdomains) > req.MaxSubdomains {
-			s.logger.Printf("⚠️  Limiting HTTP scan to %d subdomains (found %d)", req.MaxSubdomains, len(allSubdomains))
+			if s.progress != nil {
+				s.progress.OnHTTPScanLimitApplied(req.MaxSubdomains, len(allSubdomains))
+			}
 			subdomainsToScan = allSubdomains[:req.MaxSubdomains]
+		}
+		
+		totalTargets := len(subdomainsToScan) * len(req.Ports)
+		if s.progress != nil {
+			s.progress.OnHTTPScanStart(totalTargets)
 		}
 
 		webAssets, err := discovery.HTTPServiceScan(ctx, subdomainsToScan, req.Ports)
 		if err != nil {
-			s.logger.Printf("⚠️  HTTP scanning failed: %v", err)
 			result.Errors = append(result.Errors, NewError(ErrHTTPScanFailed, "HTTP scanning failed", err))
 		} else {
 			result.ActiveServices = webAssets
 			result.Statistics.HTTPResults = len(webAssets)
-			result.Statistics.TargetsScanned = len(subdomainsToScan) * len(req.Ports)
-			s.logger.Printf("🌐 HTTP scanning found %d active services", len(webAssets))
+			result.Statistics.TargetsScanned = totalTargets
+		}
+		if s.progress != nil {
+			s.progress.OnHTTPScanComplete(webAssets, err)
 		}
 	}
 
@@ -164,17 +187,15 @@ func (s *Scanner) ScanWithOptions(ctx context.Context, req *ScanRequest) (*Asset
 	result.Statistics.Duration = time.Since(startTime)
 	result.Statistics.ActiveServices = len(result.ActiveServices)
 
-	s.logger.Printf("✅ Domain asset discovery completed in %v", result.Statistics.Duration)
-	s.logger.Printf("📊 Results: %d subdomains, %d active services", 
-		result.Statistics.TotalSubdomains, result.Statistics.ActiveServices)
+	if s.progress != nil {
+		s.progress.OnScanComplete(result)
+	}
 
 	return result, nil
 }
 
 // checkDependencies ensures required tools are available
 func (s *Scanner) checkDependencies(ctx context.Context) error {
-	s.logger.Println("🔧 Checking dependencies...")
-	
 	if err := utils.CheckAndInstallDependencies(); err != nil {
 		return NewError(ErrDependencyMissing, "dependency check failed", err)
 	}

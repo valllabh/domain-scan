@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"strings"
@@ -25,8 +24,8 @@ func PassiveDiscovery(ctx context.Context, domains []string) ([]string, error) {
 	}
 	defer func() {
 		if err := os.Remove(tmpFile.Name()); err != nil {
-			// Log error but don't fail the operation for temp file cleanup
-			log.Printf("Warning: failed to remove temp file %s: %v", tmpFile.Name(), err)
+			// Silently ignore temp file cleanup errors
+			_ = err
 		}
 	}()
 

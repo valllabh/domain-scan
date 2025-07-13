@@ -115,9 +115,10 @@ func runDiscover(cmd *cobra.Command, args []string) error {
 	// Create scanner
 	scanner := domainscan.New(config)
 
-	// Set quiet mode
-	if quiet {
-		scanner.SetLogger(&quietLogger{})
+	// Set progress callback for CLI (unless quiet mode)
+	if !quiet {
+		progressHandler := domainscan.NewCLIProgressHandler()
+		scanner.SetProgressCallback(progressHandler)
 	}
 
 	// Create scan request
@@ -300,8 +301,3 @@ func outputResults(result *domainscan.AssetDiscoveryResult) error {
 	return nil
 }
 
-// quietLogger implements a quiet logger that suppresses output
-type quietLogger struct{}
-
-func (q *quietLogger) Printf(format string, v ...interface{}) {}
-func (q *quietLogger) Println(v ...interface{})               {}
