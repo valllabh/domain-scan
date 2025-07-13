@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/domain-scan/domain-scan/pkg/types"
+	"github.com/valllabh/domain-scan/pkg/types"
 )
 
 // HTTPServiceScan scans subdomains for active HTTP services

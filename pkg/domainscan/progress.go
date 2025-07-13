@@ -1,6 +1,6 @@
 package domainscan
 
-import "github.com/domain-scan/domain-scan/pkg/types"
+import "github.com/valllabh/domain-scan/pkg/types"
 
 // ProgressCallback provides optional progress updates for long-running operations
 type ProgressCallback interface {

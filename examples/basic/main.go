@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/domain-scan/domain-scan/pkg/domainscan"
+	"github.com/valllabh/domain-scan/pkg/domainscan"
 )
 
 func main() {

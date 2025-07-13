@@ -1,6 +1,6 @@
 package main
 
-import "github.com/domain-scan/domain-scan/cmd"
+import "github.com/valllabh/domain-scan/cmd"
 
 func main() {
 	cmd.Execute()

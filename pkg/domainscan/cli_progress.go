@@ -3,7 +3,7 @@ package domainscan
 import (
 	"log"
 
-	"github.com/domain-scan/domain-scan/pkg/types"
+	"github.com/valllabh/domain-scan/pkg/types"
 )
 
 // CLIProgressHandler implements ProgressCallback for command line interface

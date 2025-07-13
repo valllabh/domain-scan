@@ -2,7 +2,7 @@ package domainscan
 
 import (
 	"time"
-	"github.com/domain-scan/domain-scan/pkg/types"
+	"github.com/valllabh/domain-scan/pkg/types"
 )
 
 // AssetDiscoveryResult represents the result of a domain asset discovery scan

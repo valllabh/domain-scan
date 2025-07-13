@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/domain-scan/domain-scan/pkg/types"
-	"github.com/domain-scan/domain-scan/pkg/utils"
+	"github.com/valllabh/domain-scan/pkg/types"
+	"github.com/valllabh/domain-scan/pkg/utils"
 	"github.com/projectdiscovery/httpx/runner"
 )
 

@@ -13,7 +13,7 @@ The domain-scan library now supports an SDK-first architecture with progress cal
 Perfect for background services, batch processing, or when you want complete control over output:
 
 ```go
-import "github.com/domain-scan/domain-scan/pkg/domainscan"
+import "github.com/valllabh/domain-scan/pkg/domainscan"
 
 // Create scanner with no progress callback - completely silent
 scanner := domainscan.New(nil)
@@ -33,7 +33,7 @@ fmt.Printf("Found %d subdomains\n", result.Statistics.TotalSubdomains)
 Use the built-in CLI progress handler for terminal applications:
 
 ```go
-import "github.com/domain-scan/domain-scan/pkg/domainscan"
+import "github.com/valllabh/domain-scan/pkg/domainscan"
 
 // Create scanner
 scanner := domainscan.New(nil)
@@ -52,8 +52,8 @@ Implement your own progress handler for web apps, desktop apps, or any custom UI
 
 ```go
 import (
-    "github.com/domain-scan/domain-scan/pkg/domainscan"
-    "github.com/domain-scan/domain-scan/pkg/types"
+    "github.com/valllabh/domain-scan/pkg/domainscan"
+    "github.com/valllabh/domain-scan/pkg/types"
 )
 
 // Custom progress handler for your application

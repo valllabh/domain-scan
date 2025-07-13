@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/domain-scan/domain-scan/pkg/utils"
+	"github.com/valllabh/domain-scan/pkg/utils"
 	"github.com/spf13/cobra"
 )
 

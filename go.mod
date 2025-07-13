@@ -1,4 +1,4 @@
-module github.com/domain-scan/domain-scan
+module github.com/valllabh/domain-scan
 
 go 1.24.4
 

@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	_ "github.com/domain-scan/domain-scan/cmd" // Import for side effects
+	_ "github.com/valllabh/domain-scan/cmd" // Import for side effects
 )
 
 // TestCLIExecution tests basic CLI execution

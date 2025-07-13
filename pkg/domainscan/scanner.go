@@ -5,9 +5,9 @@ import (
 	"log"
 	"time"
 
-	"github.com/domain-scan/domain-scan/pkg/discovery"
-	"github.com/domain-scan/domain-scan/pkg/types"
-	"github.com/domain-scan/domain-scan/pkg/utils"
+	"github.com/valllabh/domain-scan/pkg/discovery"
+	"github.com/valllabh/domain-scan/pkg/types"
+	"github.com/valllabh/domain-scan/pkg/utils"
 )
 
 // Logger interface for customizable logging
