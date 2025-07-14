@@ -132,6 +132,6 @@ func generateEnterpriseReport(result *domainscan.AssetDiscoveryResult) {
 }
 
 func containsKeyword(url, keyword string) bool {
-	return len(url) > 0 && len(keyword) > 0 && 
-		   strings.Contains(strings.ToLower(url), strings.ToLower(keyword))
+	return len(url) > 0 && len(keyword) > 0 &&
+		strings.Contains(strings.ToLower(url), strings.ToLower(keyword))
 }

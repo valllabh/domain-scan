@@ -22,12 +22,12 @@ func loadTLDs() map[string]bool {
 			"ac.uk": true, "com.au": true, "org.au": true,
 		}
 	}
-	
+
 	tldMap := make(map[string]bool, len(tlds))
 	for _, tld := range tlds {
 		tldMap[tld] = true
 	}
-	
+
 	return tldMap
 }
 
@@ -46,7 +46,7 @@ func ExtractKeywordsFromDomains(domains []string) []string {
 
 	for _, domain := range domains {
 		domain = strings.ToLower(domain)
-		
+
 		// Remove TLDs from the end first
 		for {
 			found := false
@@ -61,19 +61,19 @@ func ExtractKeywordsFromDomains(domains []string) []string {
 				break
 			}
 		}
-		
+
 		if domain == "" {
 			continue
 		}
-		
+
 		// Now explode by dots and take the last element
 		parts := strings.Split(domain, ".")
 		if len(parts) == 0 {
 			continue
 		}
-		
+
 		orgPart := parts[len(parts)-1]
-		
+
 		// Split by hyphens and underscores
 		subParts := strings.FieldsFunc(orgPart, func(r rune) bool {
 			return r == '-' || r == '_'

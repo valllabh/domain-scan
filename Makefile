@@ -122,11 +122,6 @@ run-config:
 	$(GOBUILD) $(LDFLAGS) -o ${BUILD_DIR}/${BINARY_NAME} ${MAIN_FILE}
 	./${BUILD_DIR}/${BINARY_NAME} config
 
-run-install:
-	@echo "Running install command..."
-	@mkdir -p ${BUILD_DIR}
-	$(GOBUILD) $(LDFLAGS) -o ${BUILD_DIR}/${BINARY_NAME} ${MAIN_FILE}
-	./${BUILD_DIR}/${BINARY_NAME} install
 
 # Development build (no optimization)
 dev:
@@ -153,7 +148,6 @@ docs:
 	@mkdir -p docs
 	./${BUILD_DIR}/${BINARY_NAME} discover --help > docs/discover.md
 	./${BUILD_DIR}/${BINARY_NAME} config --help > docs/config.md
-	./${BUILD_DIR}/${BINARY_NAME} install --help > docs/install.md
 
 # Initialize development environment
 init:
@@ -216,7 +210,6 @@ help:
 	@echo "  run-help      - Run application with --help"
 	@echo "  run-discover  - Run quick discovery on example.com"
 	@echo "  run-config    - Run config command"
-	@echo "  run-install   - Run install command"
 	@echo "  dev           - Build development version"
 	@echo "  release       - Create release using GoReleaser"
 	@echo "  snapshot      - Create snapshot release"

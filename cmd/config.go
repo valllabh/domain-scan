@@ -92,7 +92,7 @@ func showConfig() error {
 func setConfig(key, value string) error {
 	// Parse the value
 	var parsedValue interface{}
-	
+
 	// Try to parse as array
 	if strings.HasPrefix(value, "[") && strings.HasSuffix(value, "]") {
 		value = strings.Trim(value, "[]")
@@ -118,7 +118,7 @@ func setConfig(key, value string) error {
 	}
 
 	viper.Set(key, parsedValue)
-	
+
 	// Save to config file
 	if err := viper.WriteConfig(); err != nil {
 		// If config file doesn't exist, create it
@@ -139,14 +139,14 @@ func editConfig() error {
 		if err != nil {
 			return fmt.Errorf("failed to get home directory: %w", err)
 		}
-		
+
 		configDir := filepath.Join(home, ".domain-scan")
 		configFile = filepath.Join(configDir, "config.yaml")
-		
+
 		if err := os.MkdirAll(configDir, 0750); err != nil {
 			return fmt.Errorf("failed to create config directory: %w", err)
 		}
-		
+
 		if err := createDefaultConfig(configFile); err != nil {
 			return fmt.Errorf("failed to create default config: %w", err)
 		}
@@ -167,22 +167,22 @@ func initConfigFile() error {
 	if err != nil {
 		return fmt.Errorf("failed to get home directory: %w", err)
 	}
-	
+
 	configDir := filepath.Join(home, ".domain-scan")
 	configFile := filepath.Join(configDir, "config.yaml")
-	
+
 	if err := os.MkdirAll(configDir, 0750); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
-	
+
 	if _, err := os.Stat(configFile); err == nil {
 		return fmt.Errorf("config file already exists: %s", configFile)
 	}
-	
+
 	if err := createDefaultConfig(configFile); err != nil {
 		return fmt.Errorf("failed to create config file: %w", err)
 	}
-	
+
 	fmt.Printf("Created config file: %s\n", configFile)
 	return nil
 }

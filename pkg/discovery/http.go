@@ -1,28 +1,75 @@
 package discovery
 
 import (
-	"bufio"
 	"context"
 	"fmt"
-	"os"
-	"os/exec"
-	"strconv"
-	"strings"
+	"sync"
 
+	"github.com/projectdiscovery/goflags"
+	"github.com/projectdiscovery/httpx/runner"
 	"github.com/valllabh/domain-scan/pkg/types"
 )
 
-// HTTPServiceScan scans subdomains for active HTTP services
-func HTTPServiceScan(ctx context.Context, subdomains []string, ports []int) ([]types.WebAsset, error) {
+// DomainLivenessTracker interface to avoid circular imports
+type DomainLivenessTracker interface {
+	IsLivenessCompleted(domain string) bool
+	MarkLivenessCompleted(domain string)
+}
+
+// HTTPServiceScan scans subdomains for active HTTP services using httpx SDK with progress reporting
+func HTTPServiceScan(ctx context.Context, subdomains []string, ports []int, progress ProgressCallback) ([]types.WebAsset, error) {
+	return HTTPServiceScanWithTracker(ctx, subdomains, ports, progress, nil)
+}
+
+// HTTPServiceScanWithTracker scans subdomains for active HTTP services with liveness tracking optimization
+func HTTPServiceScanWithTracker(ctx context.Context, subdomains []string, ports []int, progress ProgressCallback, tracker DomainLivenessTracker) ([]types.WebAsset, error) {
 	var webAssets []types.WebAsset
+	var mu sync.Mutex
+	totalLive := 0
 
 	if len(subdomains) == 0 || len(ports) == 0 {
 		return webAssets, nil
 	}
 
-	// Create URLs with ports
+	// Create URLs with ports, skipping domains already marked as live if tracker is provided
 	var targets []string
+	domainsToScan := make(map[string]bool)
+
 	for _, subdomain := range subdomains {
+		// Skip domains already marked as live when tracker is available
+		if tracker != nil && tracker.IsLivenessCompleted(subdomain) {
+			// Domain is already known to be live from certificate analysis
+			// Still create a basic web asset for it but skip actual HTTP probing
+			for _, port := range ports {
+				var url string
+				if port == 443 {
+					url = fmt.Sprintf("https://%s", subdomain)
+				} else if port == 80 {
+					url = fmt.Sprintf("http://%s", subdomain)
+				} else {
+					// For non-standard ports, prefer HTTPS if 443 is in ports list
+					scheme := "http"
+					for _, p := range ports {
+						if p == 443 {
+							scheme = "https"
+							break
+						}
+					}
+					url = fmt.Sprintf("%s://%s:%d", scheme, subdomain, port)
+				}
+
+				// Add a basic asset for already-live domains
+				asset := types.WebAsset{
+					URL:        url,
+					StatusCode: 200, // Assume success since it was live during cert analysis
+				}
+				webAssets = append(webAssets, asset)
+			}
+			continue
+		}
+
+		domainsToScan[subdomain] = true
+
 		for _, port := range ports {
 			// Add http and https versions
 			if port == 443 {
@@ -36,118 +83,68 @@ func HTTPServiceScan(ctx context.Context, subdomains []string, ports []int) ([]t
 		}
 	}
 
-	// Write targets to temp file for httpx
-	tmpFile, err := os.CreateTemp("", "http_targets_*.txt")
-	if err != nil {
-		return nil, fmt.Errorf("error creating temp file for HTTP targets: %w", err)
-	}
-	defer func() {
-		if err := os.Remove(tmpFile.Name()); err != nil {
-			// Silently ignore temp file cleanup errors
-			_ = err
-		}
-	}()
-
-	for _, target := range targets {
-		if _, err := tmpFile.WriteString(target + "\n"); err != nil {
-			return nil, fmt.Errorf("failed to write target to temp file: %w", err)
-		}
-	}
-	if err := tmpFile.Close(); err != nil {
-		return nil, fmt.Errorf("failed to close temp file: %w", err)
+	// If no targets to scan (all were already live), return early
+	if len(targets) == 0 {
+		return webAssets, nil
 	}
 
-	// Find httpx binary
-	httpxPath, err := findHTTPXBinary()
-	if err != nil {
-		return nil, fmt.Errorf("httpx not found: %w", err)
-	}
-
-	// Run httpx with context
-	cmd := exec.CommandContext(ctx, httpxPath, "-l", tmpFile.Name(), "-silent", "-status-code", "-timeout", "10", "-threads", "50") // #nosec G204 - trusted tool path
-	output, err := cmd.Output()
-	if err != nil {
-		if exitError, ok := err.(*exec.ExitError); ok {
-			return nil, fmt.Errorf("httpx execution failed: %w, stderr: %s", err, string(exitError.Stderr))
-		}
-		return nil, fmt.Errorf("error running httpx: %w", err)
-	}
-
-	// Parse httpx output
-	scanner := bufio.NewScanner(strings.NewReader(string(output)))
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line != "" {
-			asset := parseHTTPXOutput(line)
-			if asset != nil {
-				webAssets = append(webAssets, *asset)
+	// Configure httpx options
+	options := runner.Options{
+		Methods:         "GET",
+		StatusCode:      true,
+		Silent:          true,
+		Threads:         50,
+		Timeout:         10,
+		InputTargetHost: goflags.StringSlice(targets),
+		OnResult: func(r runner.Result) {
+			// Handle results
+			if r.Err != nil {
+				// Skip failed requests
+				return
 			}
-		}
+
+			asset := types.WebAsset{
+				URL:        r.URL,
+				StatusCode: r.StatusCode,
+			}
+
+			mu.Lock()
+			webAssets = append(webAssets, asset)
+			totalLive++
+			currentTotal := totalLive
+			mu.Unlock()
+
+			// Mark domain as live in tracker if provided
+			if tracker != nil && r.Host != "" {
+				tracker.MarkLivenessCompleted(r.Host)
+			}
+
+			// Report progress if callback is provided
+			if progress != nil {
+				// Extract domain from URL for progress reporting
+				domain := r.Host
+				if domain == "" {
+					domain = r.URL
+				}
+				progress.OnLiveDomainFound(domain, r.URL, currentTotal)
+			}
+		},
 	}
 
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("error parsing httpx output: %w", err)
+	// Validate options
+	if err := options.ValidateOptions(); err != nil {
+		return nil, fmt.Errorf("failed to validate httpx options: %w", err)
 	}
+
+	// Create httpx runner
+	httpxRunner, err := runner.New(&options)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create httpx runner: %w", err)
+	}
+	defer httpxRunner.Close()
+
+	// Run enumeration
+	httpxRunner.RunEnumeration()
 
 	return webAssets, nil
-}
-
-// findHTTPXBinary finds ProjectDiscovery's httpx binary
-func findHTTPXBinary() (string, error) {
-	// Check Go bin directory first (preferred for ProjectDiscovery's httpx)
-	goPath := os.Getenv("GOPATH")
-	if goPath == "" {
-		goPath = os.Getenv("HOME") + "/go"
-	}
-	
-	httpxPath := goPath + "/bin/httpx"
-	if _, err := os.Stat(httpxPath); err == nil {
-		// Verify it's the correct httpx by checking help output
-		cmd := exec.Command(httpxPath, "-h") // #nosec G204 - trusted tool path
-		output, err := cmd.Output()
-		if err == nil && strings.Contains(string(output), "projectdiscovery") {
-			return httpxPath, nil
-		}
-	}
-	
-	// Check PATH but verify it's ProjectDiscovery's httpx
-	if path, err := exec.LookPath("httpx"); err == nil {
-		cmd := exec.Command(path, "-h") // #nosec G204 - trusted tool from PATH
-		output, err := cmd.Output()
-		if err == nil && strings.Contains(string(output), "projectdiscovery") {
-			return path, nil
-		}
-	}
-	
-	return "", fmt.Errorf("ProjectDiscovery's httpx not found")
-}
-
-// parseHTTPXOutput parses httpx output line and creates WebAsset
-func parseHTTPXOutput(line string) *types.WebAsset {
-	// httpx with -status-code outputs: URL [STATUS_CODE]
-	if strings.Contains(line, "[") && strings.Contains(line, "]") {
-		parts := strings.Split(line, " [")
-		if len(parts) >= 2 {
-			url := strings.TrimSpace(parts[0])
-			statusCodeStr := strings.TrimRight(parts[1], "]")
-			
-			statusCode, err := strconv.Atoi(statusCodeStr)
-			if err != nil {
-				statusCode = 0
-			}
-
-			return &types.WebAsset{
-				URL:        url,
-				StatusCode: statusCode,
-			}
-		}
-	} else {
-		// Fallback: just the URL
-		return &types.WebAsset{
-			URL:        line,
-			StatusCode: 200, // Assume success if no status code
-		}
-	}
-
-	return nil
 }

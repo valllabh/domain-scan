@@ -61,19 +61,21 @@ type MyProgressHandler struct {
     onUpdate func(message string)
 }
 
-func (p *MyProgressHandler) OnDiscoveryStart(domains []string, keywords []string) {
+func (p *MyProgressHandler) OnStart(domains []string, keywords []string) {
     p.onUpdate(fmt.Sprintf("Starting scan for %d domains", len(domains)))
 }
 
-func (p *MyProgressHandler) OnHTTPScanComplete(services []types.WebAsset, err error) {
-    if err != nil {
-        p.onUpdate(fmt.Sprintf("HTTP scan failed: %v", err))
-    } else {
-        p.onUpdate(fmt.Sprintf("Found %d active services", len(services)))
-    }
+func (p *MyProgressHandler) OnDomainTraceFound(domain string, totalFound int) {
+    p.onUpdate(fmt.Sprintf("Found: %s (%d total)", domain, totalFound))
 }
 
-// Implement other callback methods...
+func (p *MyProgressHandler) OnLiveDomainFound(domain string, url string, totalLive int) {
+    p.onUpdate(fmt.Sprintf("Live: %s (%d live)", url, totalLive))
+}
+
+func (p *MyProgressHandler) OnEnd(result *AssetDiscoveryResult) {
+    p.onUpdate(fmt.Sprintf("Complete: %d domains, %d live", result.Statistics.TotalSubdomains, result.Statistics.ActiveServices))
+}
 
 // Usage
 scanner := domainscan.New(nil)
@@ -88,20 +90,14 @@ scanner.SetProgressCallback(progressHandler)
 
 ## Progress Callback Interface
 
-The `ProgressCallback` interface provides hooks for all major scan phases:
+The simplified `ProgressCallback` interface focuses on what users care about:
 
 ```go
 type ProgressCallback interface {
-    OnDiscoveryStart(domains []string, keywords []string)
-    OnDependencyCheck()
-    OnPassiveDiscoveryStart()
-    OnPassiveDiscoveryComplete(subdomains []string, err error)
-    OnCertificateAnalysisStart()
-    OnCertificateAnalysisComplete(tlsAssets []types.TLSAsset, newDomains []string, err error)
-    OnHTTPScanStart(totalTargets int)
-    OnHTTPScanLimitApplied(limit int, total int)
-    OnHTTPScanComplete(activeServices []types.WebAsset, err error)
-    OnScanComplete(result *AssetDiscoveryResult)
+    OnStart(domains []string, keywords []string)
+    OnDomainTraceFound(domain string, totalFound int)
+    OnLiveDomainFound(domain string, url string, totalLive int)
+    OnEnd(result *AssetDiscoveryResult)
 }
 ```
 

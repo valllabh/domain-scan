@@ -27,7 +27,7 @@ func TestExtractKeywordsFromDomains(t *testing.T) {
 			domains:  []string{"api.example.com"},
 			expected: []string{"example"},
 		},
-		
+
 		// UK domains (.co.uk)
 		{
 			name:     "single domain .co.uk",
@@ -44,7 +44,7 @@ func TestExtractKeywordsFromDomains(t *testing.T) {
 			domains:  []string{"apple.co.uk", "microsoft.co.uk"},
 			expected: []string{"apple", "microsoft"},
 		},
-		
+
 		// India domains (.co.in)
 		{
 			name:     "single domain .co.in",
@@ -61,7 +61,7 @@ func TestExtractKeywordsFromDomains(t *testing.T) {
 			domains:  []string{"tcs.co.in", "wipro.co.in"},
 			expected: []string{"tcs", "wipro"},
 		},
-		
+
 		// Government domains (.gov.in)
 		{
 			name:     "single domain .gov.in",
@@ -78,7 +78,7 @@ func TestExtractKeywordsFromDomains(t *testing.T) {
 			domains:  []string{"uidai.gov.in", "railways.gov.in"},
 			expected: []string{"uidai", "railways"},
 		},
-		
+
 		// Complex multi-level TLDs
 		{
 			name:     "academic domain .ac.uk",
@@ -95,7 +95,7 @@ func TestExtractKeywordsFromDomains(t *testing.T) {
 			domains:  []string{"portal.oxford.ac.uk"},
 			expected: []string{"oxford"},
 		},
-		
+
 		// Other country domains
 		{
 			name:     "australia domain .com.au",
@@ -117,7 +117,7 @@ func TestExtractKeywordsFromDomains(t *testing.T) {
 			domains:  []string{"api.telstra.com.au"},
 			expected: []string{"telstra"},
 		},
-		
+
 		// Real-world examples from user description
 		{
 			name:     "apple.com extraction",
@@ -144,7 +144,7 @@ func TestExtractKeywordsFromDomains(t *testing.T) {
 			domains:  []string{"apple.com", "apple.co.uk", "iphone.com", "iphone.co.in"},
 			expected: []string{"apple", "iphone"},
 		},
-		
+
 		// Hyphenated domains
 		{
 			name:     "domain with hyphens .com",
@@ -161,8 +161,8 @@ func TestExtractKeywordsFromDomains(t *testing.T) {
 			domains:  []string{"driver-vehicle-licensing.gov.uk"},
 			expected: []string{"driver", "vehicle", "licensing"},
 		},
-		
-		// Underscored domains  
+
+		// Underscored domains
 		{
 			name:     "domain with underscores .com",
 			domains:  []string{"test_domain.com"},
@@ -173,7 +173,7 @@ func TestExtractKeywordsFromDomains(t *testing.T) {
 			domains:  []string{"state_bank.co.in"},
 			expected: []string{"state", "bank"},
 		},
-		
+
 		// Complex nested subdomains
 		{
 			name:     "deep subdomain .com",
@@ -190,7 +190,7 @@ func TestExtractKeywordsFromDomains(t *testing.T) {
 			domains:  []string{"citizen.portal.digital.india.gov.in"},
 			expected: []string{"india"},
 		},
-		
+
 		// Domains with numbers
 		{
 			name:     "domain with numbers .com",
@@ -202,7 +202,7 @@ func TestExtractKeywordsFromDomains(t *testing.T) {
 			domains:  []string{"3m.co.uk"},
 			expected: []string{"3m"},
 		},
-		
+
 		// Edge cases and filtering
 		{
 			name:     "short parts filtered out .co.uk",
@@ -250,17 +250,17 @@ func stringSliceEqual(a, b []string) bool {
 	if len(a) != len(b) {
 		return false
 	}
-	
+
 	// Convert to maps for comparison (order doesn't matter for keywords)
 	mapA := make(map[string]bool)
 	mapB := make(map[string]bool)
-	
+
 	for _, s := range a {
 		mapA[s] = true
 	}
 	for _, s := range b {
 		mapB[s] = true
 	}
-	
+
 	return reflect.DeepEqual(mapA, mapB)
 }

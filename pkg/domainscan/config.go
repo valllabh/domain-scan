@@ -4,20 +4,22 @@ import "time"
 
 // Config represents the configuration for domain scanning
 type Config struct {
-	Discovery    DiscoveryConfig `yaml:"discovery" json:"discovery"`
-	Ports        PortConfig      `yaml:"ports" json:"ports"`
-	Keywords     []string        `yaml:"keywords" json:"keywords"`
+	Discovery    DiscoveryConfig  `yaml:"discovery" json:"discovery"`
+	Ports        PortConfig       `yaml:"ports" json:"ports"`
+	Keywords     []string         `yaml:"keywords" json:"keywords"`
 	Dependencies DependencyConfig `yaml:"dependencies" json:"dependencies"`
 }
 
 // DiscoveryConfig contains settings for asset discovery
 type DiscoveryConfig struct {
-	MaxSubdomains     int           `yaml:"max_subdomains" json:"max_subdomains"`
-	Timeout           time.Duration `yaml:"timeout" json:"timeout"`
-	Threads           int           `yaml:"threads" json:"threads"`
-	PassiveEnabled    bool          `yaml:"passive_enabled" json:"passive_enabled"`
-	CertificateEnabled bool         `yaml:"certificate_enabled" json:"certificate_enabled"`
-	HTTPEnabled       bool          `yaml:"http_enabled" json:"http_enabled"`
+	MaxSubdomains       int           `yaml:"max_subdomains" json:"max_subdomains"`
+	MaxDiscoveryRounds  int           `yaml:"max_discovery_rounds" json:"max_discovery_rounds"`
+	Timeout             time.Duration `yaml:"timeout" json:"timeout"`
+	Threads             int           `yaml:"threads" json:"threads"`
+	PassiveEnabled      bool          `yaml:"passive_enabled" json:"passive_enabled"`
+	CertificateEnabled  bool          `yaml:"certificate_enabled" json:"certificate_enabled"`
+	HTTPEnabled         bool          `yaml:"http_enabled" json:"http_enabled"`
+	SisterDomainEnabled bool          `yaml:"sister_domain_enabled" json:"sister_domain_enabled"`
 }
 
 // PortConfig defines port scanning configuration
@@ -40,12 +42,14 @@ type DependencyConfig struct {
 func DefaultConfig() *Config {
 	return &Config{
 		Discovery: DiscoveryConfig{
-			MaxSubdomains:      1000,
-			Timeout:            10 * time.Second,
-			Threads:            50,
-			PassiveEnabled:     true,
-			CertificateEnabled: true,
-			HTTPEnabled:        true,
+			MaxSubdomains:       1000,
+			MaxDiscoveryRounds:  3,
+			Timeout:             10 * time.Second,
+			Threads:             50,
+			PassiveEnabled:      true,
+			CertificateEnabled:  true,
+			HTTPEnabled:         true,
+			SisterDomainEnabled: true,
 		},
 		Ports: PortConfig{
 			Default:    []int{80, 443, 8080, 8443, 3000, 8000, 8888},
@@ -53,7 +57,7 @@ func DefaultConfig() *Config {
 			Dev:        []int{3000, 8000, 8888, 9000},
 			Enterprise: []int{80, 443, 8080, 8443, 8000, 9000, 8443},
 			Profiles: map[string][]int{
-				"quick":        {80, 443},
+				"quick":         {80, 443},
 				"comprehensive": {80, 443, 8080, 8443, 3000, 8000, 8888, 9000},
 			},
 		},

@@ -72,3 +72,7 @@ main_old.go.bak
 
 # Documentation build artifacts
 docs/build/
+
+# Results
+test-result/
+result/

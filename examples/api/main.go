@@ -20,9 +20,9 @@ type ScanRequestAPI struct {
 }
 
 type ScanResponseAPI struct {
-	Success bool                            `json:"success"`
+	Success bool                             `json:"success"`
 	Data    *domainscan.AssetDiscoveryResult `json:"data,omitempty"`
-	Error   string                          `json:"error,omitempty"`
+	Error   string                           `json:"error,omitempty"`
 }
 
 func main() {

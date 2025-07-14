@@ -23,7 +23,7 @@ While `subfinder` and `httpx` are incredibly powerful tools on their own, this p
 - **Structured Output**: Provides consistent JSON/YAML output with detailed statistics and metadata
 - **Library Integration**: Offers a Go library for programmatic use in other security tools
 - **Profile-Based Scanning**: Pre-configured scanning profiles (quick, comprehensive) for different use cases
-- **Automated Dependency Management**: Handles tool installation and path resolution automatically
+- **Queue-Based Processing**: Uses message queues for efficient concurrent domain processing
 
 **TL;DR**: This is a wrapper that orchestrates `subfinder` and `httpx` with additional logic for enterprise security workflows.
 
@@ -120,8 +120,6 @@ domain-scan discover --help
 # Check configuration
 domain-scan config
 
-# Install dependencies
-domain-scan install
 ```
 
 ### Discovery Options
@@ -204,18 +202,14 @@ This tool requires the amazing security tools from [ProjectDiscovery](https://pr
 - **[httpx](https://github.com/projectdiscovery/httpx)** - Fast and multi-purpose HTTP toolkit for probing and TLS inspection
 
 ### Installation
-You can install these tools manually or use the built-in installer:
+These tools must be installed manually and available in your PATH:
 
 ```bash
-# Option 1: Use built-in installer
-domain-scan install
-
-# Option 2: Manual installation
 go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest
 go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest
 ```
 
-💡 **Tip**: The tools must be available in your PATH. The built-in installer handles this automatically.
+💡 **Tip**: Ensure these tools are available in your PATH before running domain-scan.
 
 ## Configuration
 
@@ -270,7 +264,7 @@ The tool provides real-time feedback through stderr:
 
 ## Limitations
 
-- Requires subfinder and httpx to be installed and available in PATH
+- Requires subfinder and httpx to be installed manually and available in PATH
 - TLS certificate analysis limited to domains with valid SSL/TLS certificates  
 - SSL certificate keyword filtering may exclude domains from shared certificates that don't match organizational keywords
 - HTTP scanning limited to specified ports
@@ -364,7 +358,6 @@ make run ARGS="discover example.com --profile quick"
 make run-help          # Show help
 make run-discover      # Test discovery with example.com
 make run-config        # Show current configuration
-make run-install       # Install dependencies
 
 # Examples
 make run ARGS="discover example.com --keywords staging,prod --ports 80,443"
@@ -407,7 +400,6 @@ make run ARGS="..."  # Build and run with custom arguments
 make run-help        # Show application help
 make run-discover    # Quick test discovery with example.com
 make run-config      # Show current configuration
-make run-install     # Install dependencies
 
 make test            # Run all tests
 make test-coverage   # Run tests with HTML coverage report
@@ -525,6 +517,7 @@ make snapshot
 
 **Installation Issues:**
 - For package installations, ensure you have appropriate permissions
+- For dependency issues, verify subfinder and httpx are installed and in PATH
 - For Homebrew, run `brew update` if the formula isn't found
 
 ## Security

@@ -22,4 +22,3 @@ func TestCLIExecution(t *testing.T) {
 	// Just check that the cmd package is accessible - if we got here, it compiled successfully
 	t.Log("CLI command structure is accessible")
 }
-

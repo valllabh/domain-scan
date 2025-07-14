@@ -14,7 +14,6 @@ domain-scan is a comprehensive Go-based security tool that orchestrates [Project
   - `root.go` - Base command with configuration handling
   - `discover.go` - Main discovery command with comprehensive flag support
   - `config.go` - Configuration management command
-  - `install.go` - Dependency installation command
 
 ### Core Library (`pkg/`)
 - **domainscan/**: Main scanner logic
@@ -22,18 +21,29 @@ domain-scan is a comprehensive Go-based security tool that orchestrates [Project
   - `config.go` - Configuration structures with validation
   - `result.go` - Result structures for discovery output
   - `errors.go` - Custom error types for the library
+  - `queue.go` - Message queue-based domain processing system
+  - `domain_state.go` - Domain state tracking and scan completion management
+  - `progress.go` - Progress callback system for UI integration
+  - `cli_progress.go` - CLI-specific progress handler implementation
 - **discovery/**: Discovery method implementations
   - `passive.go` - Subfinder integration for passive enumeration
   - `certificate.go` - TLS certificate analysis for SAN extraction
   - `http.go` - HTTP service verification and scanning
 - **types/**: Shared type definitions
-- **utils/**: Utility functions for keywords and dependencies
+- **utils/**: Utility functions for keywords and TLD handling
 
 ### Configuration System
 - Uses Viper for configuration management with YAML support
 - Default config in `config.yaml` with profiles (quick, comprehensive)
 - Supports environment variables and CLI flag overrides
 - Configuration hierarchy: CLI flags > config file > defaults
+
+### Progress Callback System
+The tool now supports flexible progress callbacks for different UI frameworks:
+- **Silent Mode**: No progress callbacks for background processing
+- **CLI Progress**: Built-in terminal progress handler
+- **Custom Progress**: Implement your own progress handler for web/desktop apps
+- **Real-time Updates**: Progress callbacks fire on domain discovery and liveness detection
 
 ## Development Commands
 
@@ -58,7 +68,6 @@ make run ARGS="discover example.com --profile quick"
 make run-help          # Show help
 make run-discover      # Test discovery with example.com
 make run-config        # Show current configuration
-make run-install       # Install dependencies
 
 # Examples of custom runs
 make run ARGS="discover example.com --keywords staging,prod --ports 80,443"
@@ -123,7 +132,7 @@ The tool requires these excellent security tools from [ProjectDiscovery](https:/
 - **[subfinder](https://github.com/projectdiscovery/subfinder)** - For passive subdomain enumeration from multiple sources
 - **[httpx](https://github.com/projectdiscovery/httpx)** - For HTTP probing and TLS certificate analysis
 
-Use `domain-scan install` to automatically install these dependencies, or install manually:
+These tools must be installed manually and available in your PATH:
 ```bash
 go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest
 go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest
@@ -131,12 +140,60 @@ go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest
 
 ## Library Usage Pattern
 
-The library can be used programmatically with two main approaches:
+The library now supports an SDK-first architecture with flexible progress callbacks for clean integration into various types of applications.
 
-### Simple Discovery
+### Silent SDK Usage (No Output)
+Perfect for background services, batch processing, or when you want complete control over output:
 ```go
-scanner := domainscan.New(nil) // Uses default config
+// Create scanner with no progress callback - completely silent
+scanner := domainscan.New(nil)
+
+// Run scan with no console output
 result, err := scanner.DiscoverAssets(ctx, []string{"example.com"})
+```
+
+### CLI Progress Handler
+Use the built-in CLI progress handler for terminal applications:
+```go
+scanner := domainscan.New(nil)
+progressHandler := domainscan.NewCLIProgressHandler()
+scanner.SetProgressCallback(progressHandler)
+
+result, err := scanner.ScanWithOptions(ctx, req)
+```
+
+### Custom Progress Handler
+Implement your own progress handler for web apps, desktop apps, or any custom UI:
+```go
+type MyProgressHandler struct {
+    onUpdate func(message string)
+}
+
+func (p *MyProgressHandler) OnStart(domains []string, keywords []string) {
+    p.onUpdate(fmt.Sprintf("Starting scan for %d domains", len(domains)))
+}
+
+func (p *MyProgressHandler) OnDomainTraceFound(domain string, totalFound int) {
+    p.onUpdate(fmt.Sprintf("Found: %s (%d total)", domain, totalFound))
+}
+
+func (p *MyProgressHandler) OnLiveDomainFound(domain string, url string, totalLive int) {
+    p.onUpdate(fmt.Sprintf("Live: %s (%d live)", url, totalLive))
+}
+
+func (p *MyProgressHandler) OnEnd(result *AssetDiscoveryResult) {
+    p.onUpdate(fmt.Sprintf("Complete: %d domains, %d live", result.Statistics.TotalSubdomains, result.Statistics.ActiveServices))
+}
+
+// Usage
+scanner := domainscan.New(nil)
+progressHandler := &MyProgressHandler{
+    onUpdate: func(message string) {
+        // Send to web UI, log, etc.
+        fmt.Println(message)
+    },
+}
+scanner.SetProgressCallback(progressHandler)
 ```
 
 ### Advanced Discovery with Options
@@ -145,17 +202,58 @@ config := domainscan.DefaultConfig()
 scanner := domainscan.New(config)
 
 req := &domainscan.ScanRequest{
-    Domains:        []string{"example.com"},
-    Keywords:       []string{}, // Keywords are extracted from domains automatically
-    Ports:          []int{80, 443, 8080},
-    MaxSubdomains:  1000,
-    EnablePassive:  true,
-    EnableCertScan: true,
-    EnableHTTPScan: true,
+    Domains:             []string{"example.com"},
+    Keywords:            []string{}, // Keywords are extracted from domains automatically
+    Ports:               []int{80, 443, 8080},
+    MaxSubdomains:       1000,
+    MaxDiscoveryRounds:  3,
+    EnablePassive:       true,
+    EnableCertScan:      true,
+    EnableHTTPScan:      true,
+    EnableSisterDomains: false,
 }
 
 result, err := scanner.ScanWithOptions(ctx, req)
 ```
+
+## Queue-Based Architecture
+
+The tool uses a message queue-based architecture for efficient domain processing:
+
+### Core Components
+
+1. **Domain Processor** (`pkg/domainscan/queue.go`): Manages domain discovery using message queues
+   - Separate queues for passive discovery and certificate analysis
+   - Worker pools for concurrent processing
+   - Progress callback integration
+
+2. **Domain Tracker** (`pkg/domainscan/domain_state.go`): Provides memory-efficient tracking of discovered domains
+   - Scan completion state management (passive, certificate, liveness)
+   - Port-specific certificate scan tracking
+   - Pending scan sets for efficient querying
+
+3. **Progress System** (`pkg/domainscan/progress.go`, `pkg/domainscan/cli_progress.go`): 
+   - Flexible progress callback interface
+   - CLI progress handler for terminal output
+   - Custom progress handlers for different UI frameworks
+
+### Processing Flow
+
+1. Initial domains are queued for passive discovery
+2. Passive discovery workers find subdomains and queue them for certificate analysis
+3. Certificate analysis workers:
+   - Extract domains from TLS certificates
+   - Perform HTTP service verification
+   - Queue newly discovered domains for passive discovery
+4. Process continues until all queues are empty
+
+### Benefits
+
+- **Concurrent Processing**: Multiple workers handle different scan types simultaneously
+- **Deduplication**: Efficient tracking prevents duplicate work
+- **Scalability**: Queue-based design can handle large domain lists
+- **Flexibility**: Progress callbacks enable integration with any UI framework
+- **Memory Efficiency**: Optimized data structures for large domain sets
 
 ## Key Configuration Options
 

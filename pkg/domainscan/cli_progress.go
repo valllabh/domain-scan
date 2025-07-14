@@ -1,82 +1,134 @@
 package domainscan
 
 import (
-	"log"
-
-	"github.com/valllabh/domain-scan/pkg/types"
+	"fmt"
+	"strings"
+	"sync"
+	"time"
 )
 
 // CLIProgressHandler implements ProgressCallback for command line interface
-type CLIProgressHandler struct{}
+type CLIProgressHandler struct {
+	startTime      time.Time
+	animationIndex int
+	totalDomains   int
+	liveDomains    int
+	animating      bool
+	stopAnimation  chan bool
+	mu             sync.RWMutex
+}
+
+var spinnerChars = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 
 // NewCLIProgressHandler creates a new CLI progress handler
 func NewCLIProgressHandler() *CLIProgressHandler {
-	return &CLIProgressHandler{}
+	return &CLIProgressHandler{
+		startTime:     time.Now(),
+		stopAnimation: make(chan bool, 1),
+	}
 }
 
-// OnDiscoveryStart is called when domain asset discovery begins
-func (c *CLIProgressHandler) OnDiscoveryStart(domains []string, keywords []string) {
-	log.Printf("🔍 Starting domain asset discovery for %d domains", len(domains))
+// OnStart is called when domain asset discovery begins
+func (c *CLIProgressHandler) OnStart(domains []string, keywords []string) {
+	c.startTime = time.Now()
+
+	fmt.Printf("🔍 Starting domain discovery for %d domains\n", len(domains))
 	if len(keywords) > 0 {
-		log.Printf("🔑 Using keywords: %v", keywords)
+		fmt.Printf("🔑 Using keywords: %s\n", strings.Join(keywords, ", "))
 	}
+	fmt.Printf("\n")
+	
+	// Start background animation
+	c.startAnimation()
 }
 
-// OnDependencyCheck is called when checking/installing dependencies
-func (c *CLIProgressHandler) OnDependencyCheck() {
-	log.Println("🔧 Checking dependencies...")
+// OnProgress is called with unified progress updates
+func (c *CLIProgressHandler) OnProgress(totalDomains, liveDomains int) {
+	c.mu.Lock()
+	c.totalDomains = totalDomains
+	c.liveDomains = liveDomains
+	c.mu.Unlock()
+	
+	// Force immediate display update with current animation frame
+	c.updateProgressDisplay()
 }
 
-// OnPassiveDiscoveryStart is called when passive subdomain discovery begins
-func (c *CLIProgressHandler) OnPassiveDiscoveryStart() {
-	log.Println("🔍 Starting passive subdomain discovery")
-}
+// OnEnd is called when the entire scan finishes
+func (c *CLIProgressHandler) OnEnd(result *AssetDiscoveryResult) {
+	// Stop background animation
+	c.stopAnimationLoop()
+	
+	// Clear the progress line
+	fmt.Printf("\r%s\r", strings.Repeat(" ", 80))
 
-// OnPassiveDiscoveryComplete is called when passive discovery finishes
-func (c *CLIProgressHandler) OnPassiveDiscoveryComplete(subdomains []string, err error) {
-	if err != nil {
-		log.Printf("⚠️  Passive discovery failed: %v", err)
-	} else {
-		log.Printf("📋 Passive discovery found %d subdomains", len(subdomains))
-	}
-}
-
-// OnCertificateAnalysisStart is called when TLS certificate analysis begins
-func (c *CLIProgressHandler) OnCertificateAnalysisStart() {
-	log.Println("🔐 Starting TLS certificate analysis")
-}
-
-// OnCertificateAnalysisComplete is called when certificate analysis finishes
-func (c *CLIProgressHandler) OnCertificateAnalysisComplete(tlsAssets []types.TLSAsset, newDomains []string, err error) {
-	if err != nil {
-		log.Printf("⚠️  Certificate analysis failed: %v", err)
-	} else {
-		log.Printf("🔐 Certificate analysis found %d additional subdomains", len(newDomains))
-	}
-}
-
-// OnHTTPScanStart is called when HTTP service verification begins
-func (c *CLIProgressHandler) OnHTTPScanStart(totalTargets int) {
-	log.Println("🌐 Starting HTTP service verification")
-}
-
-// OnHTTPScanLimitApplied is called when subdomain limit is applied for HTTP scanning
-func (c *CLIProgressHandler) OnHTTPScanLimitApplied(limit int, total int) {
-	log.Printf("⚠️  Limiting HTTP scan to %d subdomains (found %d)", limit, total)
-}
-
-// OnHTTPScanComplete is called when HTTP scanning finishes
-func (c *CLIProgressHandler) OnHTTPScanComplete(activeServices []types.WebAsset, err error) {
-	if err != nil {
-		log.Printf("⚠️  HTTP scanning failed: %v", err)
-	} else {
-		log.Printf("🌐 HTTP scanning found %d active services", len(activeServices))
-	}
-}
-
-// OnScanComplete is called when the entire scan finishes
-func (c *CLIProgressHandler) OnScanComplete(result *AssetDiscoveryResult) {
-	log.Printf("✅ Domain asset discovery completed in %v", result.Statistics.Duration)
-	log.Printf("📊 Results: %d subdomains, %d active services", 
+	duration := time.Since(c.startTime)
+	fmt.Printf("✅ Discovery completed in %v\n", duration)
+	fmt.Printf("📊 Results: %d domains, %d live services\n\n",
 		result.Statistics.TotalSubdomains, result.Statistics.ActiveServices)
+}
+
+// updateProgressDisplay displays animated progress with counts
+func (c *CLIProgressHandler) updateProgressDisplay() {
+	c.mu.RLock()
+	animationChar := spinnerChars[c.animationIndex]
+	totalDomains := c.totalDomains
+	liveDomains := c.liveDomains
+	c.mu.RUnlock()
+
+	// Build progress message: [spinner] Discovering domains | total X ➔ live Y
+	message := fmt.Sprintf("\r%s Discovering domains | total %d ➔ live %d",
+		animationChar, totalDomains, liveDomains)
+
+	// Pad with spaces to clear previous longer messages
+	if len(message) < 80 {
+		message += strings.Repeat(" ", 80-len(message))
+	}
+
+	// Always display progress immediately
+	fmt.Print(message)
+}
+
+// startAnimation begins the background animation loop
+func (c *CLIProgressHandler) startAnimation() {
+	c.mu.Lock()
+	if c.animating {
+		c.mu.Unlock()
+		return // Already animating
+	}
+	c.animating = true
+	c.mu.Unlock()
+
+	go func() {
+		ticker := time.NewTicker(100 * time.Millisecond)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				c.mu.Lock()
+				c.animationIndex = (c.animationIndex + 1) % len(spinnerChars)
+				c.mu.Unlock()
+				c.updateProgressDisplay()
+			case <-c.stopAnimation:
+				return
+			}
+		}
+	}()
+}
+
+// stopAnimationLoop stops the background animation
+func (c *CLIProgressHandler) stopAnimationLoop() {
+	c.mu.Lock()
+	if !c.animating {
+		c.mu.Unlock()
+		return // Not animating
+	}
+	c.animating = false
+	c.mu.Unlock()
+
+	select {
+	case c.stopAnimation <- true:
+	default:
+		// Channel might be full, that's okay
+	}
 }

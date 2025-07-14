@@ -1,90 +1,70 @@
 package discovery
 
 import (
-	"bufio"
 	"context"
 	"fmt"
-	"os"
-	"os/exec"
-	"strings"
+
+	"github.com/projectdiscovery/subfinder/v2/pkg/resolve"
+	"github.com/projectdiscovery/subfinder/v2/pkg/runner"
 )
 
-// PassiveDiscovery performs passive subdomain discovery using subfinder
-func PassiveDiscovery(ctx context.Context, domains []string) ([]string, error) {
+// ProgressCallback defines the interface for progress reporting during discovery
+// This is kept for backward compatibility but is no longer used in the queue-based system
+type ProgressCallback interface {
+	// OnDomainTraceFound is called when any domain is discovered
+	OnDomainTraceFound(domain string, totalFound int)
+
+	// OnLiveDomainFound is called when a live domain is verified
+	OnLiveDomainFound(domain string, url string, totalLive int)
+}
+
+// PassiveDiscovery performs passive subdomain discovery using subfinder SDK with progress reporting
+func PassiveDiscovery(ctx context.Context, domains []string, progress ProgressCallback) ([]string, error) {
 	var subdomains []string
+	totalFound := 0
 
 	if len(domains) == 0 {
 		return subdomains, nil
 	}
 
-	// Create temporary file with domains
-	tmpFile, err := os.CreateTemp("", "domains_*.txt")
-	if err != nil {
-		return nil, fmt.Errorf("error creating temp file: %w", err)
-	}
-	defer func() {
-		if err := os.Remove(tmpFile.Name()); err != nil {
-			// Silently ignore temp file cleanup errors
-			_ = err
-		}
-	}()
-
-	// Write domains to temp file
+	// Enumerate subdomains for each domain
 	for _, domain := range domains {
-		if _, err := tmpFile.WriteString(domain + "\n"); err != nil {
-			return nil, fmt.Errorf("failed to write domain to temp file: %w", err)
+		// Create subfinder options with ResultCallback for memory-efficient progress reporting
+		options := &runner.Options{
+			Threads:            10,         // Reasonable default for concurrent enumeration
+			Timeout:            30,         // 30 second timeout per source
+			MaxEnumerationTime: 10,         // 10 minute max per domain
+			Resolvers:          []string{}, // Use default resolvers
+			All:                true,       // Use all available sources
+			Silent:             true,       // Silent mode for clean output
+			Verbose:            false,      // Disable verbose logging
+			RemoveWildcard:     false,      // Don't remove wildcards (faster)
+			CaptureSources:     false,      // Don't capture source information
+			ResultCallback: func(result *resolve.HostEntry) {
+				// This callback is called for each unique subdomain found
+				subdomains = append(subdomains, result.Host)
+				totalFound++
+
+				// Report progress if callback is provided
+				if progress != nil {
+					progress.OnDomainTraceFound(result.Host, totalFound)
+				}
+			},
 		}
-	}
-	if err := tmpFile.Close(); err != nil {
-		return nil, fmt.Errorf("failed to close temp file: %w", err)
-	}
 
-	// Find subfinder binary
-	subfinderPath, err := findBinary("subfinder")
-	if err != nil {
-		return nil, fmt.Errorf("subfinder not found: %w", err)
-	}
-
-	// Run subfinder with context
-	cmd := exec.CommandContext(ctx, subfinderPath, "-dL", tmpFile.Name(), "-all", "-silent") // #nosec G204 - trusted tool path
-	output, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("error running subfinder: %w", err)
-	}
-
-	// Parse output
-	scanner := bufio.NewScanner(strings.NewReader(string(output)))
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line != "" {
-			subdomains = append(subdomains, line)
+		// Initialize subfinder runner
+		subfinderRunner, err := runner.NewRunner(options)
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize subfinder: %w", err)
 		}
-	}
 
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("error parsing subfinder output: %w", err)
+		// Run enumeration with context - no writers needed since we use ResultCallback
+		_, err = subfinderRunner.EnumerateSingleDomainWithCtx(ctx, domain, nil)
+		if err != nil {
+			// Continue with other domains if one fails
+			continue
+		}
 	}
 
 	return subdomains, nil
-}
-
-// findBinary finds a binary in common locations
-func findBinary(name string) (string, error) {
-	// Try PATH first
-	if path, err := exec.LookPath(name); err == nil {
-		return path, nil
-	}
-
-	// Try Go bin directory
-	goPath := os.Getenv("GOPATH")
-	if goPath == "" {
-		goPath = os.Getenv("HOME") + "/go"
-	}
-	
-	binPath := goPath + "/bin/" + name
-	if _, err := os.Stat(binPath); err == nil {
-		return binPath, nil
-	}
-
-	return "", fmt.Errorf("binary %s not found in PATH or %s/bin", name, goPath)
 }

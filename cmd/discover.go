@@ -6,14 +6,22 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/valllabh/domain-scan/pkg/domainscan"
-	"github.com/valllabh/domain-scan/pkg/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/valllabh/domain-scan/pkg/domainscan"
+	"github.com/valllabh/domain-scan/pkg/utils"
+	"go.uber.org/zap"
 )
+
+// DomainResult represents the output format for domains.json
+type DomainResult struct {
+	AllDomains  []string `json:"all-domains"`
+	LiveDomains []string `json:"live-domains"`
+}
 
 var (
 	keywords      []string
@@ -24,10 +32,12 @@ var (
 	profile       string
 	outputFile    string
 	outputFormat  string
+	resultDir     string
 	enablePassive bool
 	enableCert    bool
 	enableHTTP    bool
 	quiet         bool
+	debug         bool
 )
 
 // discoverCmd represents the discover command
@@ -77,7 +87,9 @@ func init() {
 	// Output flags
 	discoverCmd.Flags().StringVarP(&outputFile, "output", "o", "", "Output file (default: stdout)")
 	discoverCmd.Flags().StringVarP(&outputFormat, "format", "f", "text", "Output format (text, json)")
+	discoverCmd.Flags().StringVar(&resultDir, "result-dir", "./result", "Directory to save results (creates {result-dir}/{first-domain}/domains.json)")
 	discoverCmd.Flags().BoolVarP(&quiet, "quiet", "q", false, "Quiet mode (suppress progress output)")
+	discoverCmd.Flags().BoolVar(&debug, "debug", false, "Enable debug logging for troubleshooting")
 
 	// Method toggles
 	discoverCmd.Flags().BoolVar(&enablePassive, "passive", true, "Enable passive subdomain discovery")
@@ -115,6 +127,22 @@ func runDiscover(cmd *cobra.Command, args []string) error {
 	// Create scanner
 	scanner := domainscan.New(config)
 
+	// Set debug logger if debug mode enabled
+	if debug {
+		zapConfig := zap.NewDevelopmentConfig()
+		zapConfig.Level = zap.NewAtomicLevelAt(zap.DebugLevel)
+		zapConfig.OutputPaths = []string{"stderr"}
+		logger, err := zapConfig.Build()
+		if err != nil {
+			log.Printf("Failed to create debug logger: %v", err)
+		} else {
+			sugar := logger.Sugar()
+			scanner.SetSugaredLogger(sugar)
+			sugar.Infof("Debug mode enabled")
+			sugar.Infof("Configuration: %+v", config)
+		}
+	}
+
 	// Set progress callback for CLI (unless quiet mode)
 	if !quiet {
 		progressHandler := domainscan.NewCLIProgressHandler()
@@ -123,39 +151,41 @@ func runDiscover(cmd *cobra.Command, args []string) error {
 
 	// Create scan request
 	req := &domainscan.ScanRequest{
-		Domains:        args,
-		Keywords:       keywords,
-		Ports:          getPorts(config),
-		MaxSubdomains:  getMaxSubdomains(config),
-		Timeout:        getTimeout(config),
-		EnablePassive:  getEnablePassive(cmd),
-		EnableCertScan: getEnableCert(cmd),
-		EnableHTTPScan: getEnableHTTP(cmd),
+		Domains:             args,
+		Keywords:            keywords,
+		Ports:               getPorts(config),
+		MaxSubdomains:       getMaxSubdomains(config),
+		MaxDiscoveryRounds:  config.Discovery.MaxDiscoveryRounds,
+		Timeout:             getTimeout(config),
+		EnablePassive:       getEnablePassive(cmd),
+		EnableCertScan:      getEnableCert(cmd),
+		EnableHTTPScan:      getEnableHTTP(cmd),
+		EnableSisterDomains: config.Discovery.SisterDomainEnabled,
 	}
 
 	// Extract keywords from domains automatically
 	extractedKeywords := utils.ExtractKeywordsFromDomains(req.Domains)
-	
+
 	// Combine extracted keywords with manually provided keywords and config keywords
 	keywordMap := make(map[string]bool)
-	
+
 	// Add extracted keywords first
 	for _, keyword := range extractedKeywords {
 		keywordMap[keyword] = true
 	}
-	
+
 	// Add manually provided keywords (from --keywords flag)
 	for _, keyword := range req.Keywords {
 		keywordMap[keyword] = true
 	}
-	
+
 	// Add config keywords if no manual keywords were provided
 	if len(keywords) == 0 {
 		for _, keyword := range config.Keywords {
 			keywordMap[keyword] = true
 		}
 	}
-	
+
 	// Convert back to slice
 	var finalKeywords []string
 	for keyword := range keywordMap {
@@ -171,7 +201,13 @@ func runDiscover(cmd *cobra.Command, args []string) error {
 	}
 
 	// Output results
-	return outputResults(result)
+	err = outputResults(result)
+	if err != nil {
+		return err
+	}
+
+	// Always create domains.json in result directory
+	return createDomainsJSON(result, args[0])
 }
 
 func loadDiscoveryConfig() *domainscan.Config {
@@ -301,3 +337,97 @@ func outputResults(result *domainscan.AssetDiscoveryResult) error {
 	return nil
 }
 
+func createDomainsJSON(result *domainscan.AssetDiscoveryResult, firstDomain string) error {
+	// Create result directory structure
+	domainDir := filepath.Join(resultDir, firstDomain)
+	if err := os.MkdirAll(domainDir, 0755); err != nil {
+		return fmt.Errorf("failed to create result directory: %w", err)
+	}
+
+	// Prepare all domains (subdomains + active service domains)
+	allDomainsMap := make(map[string]bool)
+
+	// Add subdomains
+	for _, subdomain := range result.Subdomains {
+		allDomainsMap[subdomain] = true
+	}
+
+	// Add domains from active services
+	for _, service := range result.ActiveServices {
+		// Extract domain from URL
+		if domain := extractDomainFromURL(service.URL); domain != "" {
+			allDomainsMap[domain] = true
+		}
+	}
+
+	// Convert map to slice
+	var allDomains []string
+	for domain := range allDomainsMap {
+		allDomains = append(allDomains, domain)
+	}
+
+	// Prepare live domains (URLs from active services)
+	var liveDomains []string
+	for _, service := range result.ActiveServices {
+		liveDomains = append(liveDomains, service.URL)
+	}
+
+	// Create domain result structure
+	domainResult := DomainResult{
+		AllDomains:  allDomains,
+		LiveDomains: liveDomains,
+	}
+
+	// Marshal to JSON
+	output, err := json.MarshalIndent(domainResult, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal domains JSON: %w", err)
+	}
+
+	// Write to domains.json
+	domainsPath := filepath.Join(domainDir, "domains.json")
+	if err := os.WriteFile(domainsPath, output, 0644); err != nil {
+		return fmt.Errorf("failed to write domains.json: %w", err)
+	}
+
+	// Print the full path as an end event
+	fmt.Printf("\nResults saved to: %s\n", domainsPath)
+
+	return nil
+}
+
+func extractDomainFromURL(url string) string {
+	// Remove protocol
+	if strings.HasPrefix(url, "http://") {
+		url = url[7:]
+	} else if strings.HasPrefix(url, "https://") {
+		url = url[8:]
+	}
+
+	// Remove port and path
+	if idx := strings.Index(url, ":"); idx != -1 {
+		url = url[:idx]
+	}
+	if idx := strings.Index(url, "/"); idx != -1 {
+		url = url[:idx]
+	}
+
+	return url
+}
+
+// DebugLogger implements the Logger interface for debug output
+type DebugLogger struct {
+	enabled bool
+}
+
+func (d *DebugLogger) Printf(format string, v ...interface{}) {
+	if d.enabled {
+		log.Printf(format, v...)
+	}
+}
+
+func (d *DebugLogger) Println(v ...interface{}) {
+	if d.enabled {
+		log.Println(v...)
+	}
+}

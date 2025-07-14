@@ -36,7 +36,7 @@ func TestContainsKeyword(t *testing.T) {
 			keyword:  "apple",
 			expected: false,
 		},
-		
+
 		// UK domains (.co.uk)
 		{
 			name:     "direct match .co.uk",
@@ -62,7 +62,7 @@ func TestContainsKeyword(t *testing.T) {
 			keyword:  "iphone",
 			expected: true,
 		},
-		
+
 		// India domains (.co.in)
 		{
 			name:     "direct match .co.in",
@@ -82,7 +82,7 @@ func TestContainsKeyword(t *testing.T) {
 			keyword:  "infosys",
 			expected: false,
 		},
-		
+
 		// Government domains (.gov.in)
 		{
 			name:     "direct match .gov.in",
@@ -102,7 +102,7 @@ func TestContainsKeyword(t *testing.T) {
 			keyword:  "uidai",
 			expected: false,
 		},
-		
+
 		// Other country domains
 		{
 			name:     "australia .com.au",
@@ -122,7 +122,7 @@ func TestContainsKeyword(t *testing.T) {
 			keyword:  "siemens",
 			expected: true,
 		},
-		
+
 		// Complex multi-level domains
 		{
 			name:     "UK academic .ac.uk",
@@ -136,7 +136,7 @@ func TestContainsKeyword(t *testing.T) {
 			keyword:  "hmrc",
 			expected: true,
 		},
-		
+
 		// Hyphenated organizations
 		{
 			name:     "hyphenated keyword .com",
@@ -156,7 +156,7 @@ func TestContainsKeyword(t *testing.T) {
 			keyword:  "rolls-royce",
 			expected: true,
 		},
-		
+
 		// Real-world examples based on user's description
 		{
 			name:     "apple status subdomain",
@@ -188,7 +188,7 @@ func TestContainsKeyword(t *testing.T) {
 			keyword:  "iphone",
 			expected: true,
 		},
-		
+
 		// Edge cases
 		{
 			name:     "extracted keyword match complex domain",
@@ -220,7 +220,7 @@ func TestContainsKeyword(t *testing.T) {
 			keyword:  "apple",
 			expected: false,
 		},
-		
+
 		// Numbers in domain names
 		{
 			name:     "domain with numbers .com",
