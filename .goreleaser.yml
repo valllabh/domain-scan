@@ -66,7 +66,7 @@ release:
   header: |
     ## Release {{.Version}}
     
-    **Full Changelog**: https://github.com/{{ .Env.GITHUB_REPOSITORY | default "valllabh/domain-scan" }}/compare/{{ .PreviousTag }}...{{ .Tag }}
+    **Full Changelog**: https://github.com/valllabh/domain-scan/compare/{{ .PreviousTag }}...{{ .Tag }}
   footer: |
     ## Installation
     
