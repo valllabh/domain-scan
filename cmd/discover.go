@@ -255,7 +255,7 @@ func outputResults(result *domainscan.AssetDiscoveryResult) error {
 func createDomainsJSON(result *domainscan.AssetDiscoveryResult, firstDomain string) error {
 	// Create result directory structure
 	domainDir := filepath.Join(resultDir, firstDomain)
-	if err := os.MkdirAll(domainDir, 0755); err != nil {
+	if err := os.MkdirAll(domainDir, 0750); err != nil {
 		return fmt.Errorf("failed to create result directory: %w", err)
 	}
 
@@ -289,7 +289,7 @@ func createDomainsJSON(result *domainscan.AssetDiscoveryResult, firstDomain stri
 
 	// Write to domains.json
 	domainsPath := filepath.Join(domainDir, "domains.json")
-	if err := os.WriteFile(domainsPath, output, 0644); err != nil {
+	if err := os.WriteFile(domainsPath, output, 0600); err != nil {
 		return fmt.Errorf("failed to write domains.json: %w", err)
 	}
 
