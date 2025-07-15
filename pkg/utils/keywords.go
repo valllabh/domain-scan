@@ -47,20 +47,8 @@ func ExtractKeywordsFromDomains(domains []string) []string {
 	for _, domain := range domains {
 		domain = strings.ToLower(domain)
 
-		// Remove TLDs from the end first
-		for {
-			found := false
-			for tld := range tlds {
-				if strings.HasSuffix(domain, "."+tld) {
-					domain = domain[:len(domain)-len(tld)-1]
-					found = true
-					break
-				}
-			}
-			if !found {
-				break
-			}
-		}
+		// Remove TLDs from the end efficiently
+		domain = removeTLDs(domain, tlds)
 
 		if domain == "" {
 			continue
@@ -91,4 +79,63 @@ func ExtractKeywordsFromDomains(domains []string) []string {
 	}
 
 	return keywords
+}
+
+// LoadKeywords combines domain extraction and argument keywords
+func LoadKeywords(domains []string, keywordsInArgument []string) []string {
+	keywordMap := make(map[string]bool)
+
+	// Extract keywords from domains
+	extractedKeywords := ExtractKeywordsFromDomains(domains)
+	for _, keyword := range extractedKeywords {
+		keywordMap[keyword] = true
+	}
+
+	// Add keywords from arguments
+	for _, keyword := range keywordsInArgument {
+		if keyword != "" {
+			keywordMap[strings.ToLower(strings.TrimSpace(keyword))] = true
+		}
+	}
+
+	// Convert back to slice with pre-allocation
+	finalKeywords := make([]string, 0, len(keywordMap))
+	for keyword := range keywordMap {
+		finalKeywords = append(finalKeywords, keyword)
+	}
+
+	return finalKeywords
+}
+
+// MatchesKeywords checks if a domain matches any of the provided keywords
+func MatchesKeywords(domain string, keywords []string) bool {
+	if len(keywords) == 0 {
+		return true // Accept all if no keywords specified
+	}
+
+	domainLower := strings.ToLower(domain)
+	for _, keyword := range keywords {
+		if strings.Contains(domainLower, strings.ToLower(keyword)) {
+			return true
+		}
+	}
+	return false
+}
+
+// removeTLDs efficiently removes TLD components from a domain
+func removeTLDs(domain string, tlds map[string]bool) string {
+	for {
+		lastDot := strings.LastIndex(domain, ".")
+		if lastDot == -1 {
+			break
+		}
+
+		suffix := domain[lastDot+1:]
+		if tlds[suffix] {
+			domain = domain[:lastDot]
+		} else {
+			break
+		}
+	}
+	return domain
 }

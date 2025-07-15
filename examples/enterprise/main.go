@@ -14,21 +14,13 @@ func main() {
 	// Create enterprise configuration
 	config := &domainscan.Config{
 		Discovery: domainscan.DiscoveryConfig{
-			MaxSubdomains:      10000,
 			Timeout:            30 * time.Second,
 			Threads:            100,
 			PassiveEnabled:     true,
 			CertificateEnabled: true,
 			HTTPEnabled:        true,
 		},
-		Ports: domainscan.PortConfig{
-			Custom: []int{80, 443, 8080, 8443, 9000, 8000, 3000, 8888},
-		},
-		Keywords: []string{}, // Keywords are extracted from domains automatically
-		Dependencies: domainscan.DependencyConfig{
-			AutoInstall: true,
-			CheckPaths:  true,
-		},
+		Keywords: []string{},
 	}
 
 	// Create scanner with enterprise config
@@ -45,8 +37,6 @@ func main() {
 	req := &domainscan.ScanRequest{
 		Domains:        domains,
 		Keywords:       config.Keywords,
-		Ports:          config.Ports.Custom,
-		MaxSubdomains:  config.Discovery.MaxSubdomains,
 		Timeout:        config.Discovery.Timeout,
 		EnablePassive:  true,
 		EnableCertScan: true,
@@ -56,8 +46,7 @@ func main() {
 	fmt.Println("🏢 Starting Enterprise Asset Discovery")
 	fmt.Printf("Domains: %v\n", domains)
 	fmt.Printf("Keywords: %v\n", req.Keywords)
-	fmt.Printf("Ports: %v\n", req.Ports)
-	fmt.Printf("Max Subdomains: %d\n\n", req.MaxSubdomains)
+	fmt.Printf("Timeout: %v\n\n", req.Timeout)
 
 	// Execute scan
 	result, err := scanner.ScanWithOptions(context.Background(), req)
@@ -86,31 +75,36 @@ func generateEnterpriseReport(result *domainscan.AssetDiscoveryResult) {
 	// Active services by status code
 	fmt.Printf("🌐 Active Services by Status:\n")
 	statusCounts := make(map[int]int)
-	for _, service := range result.ActiveServices {
-		statusCounts[service.StatusCode]++
+	for _, entry := range result.Domains {
+		if entry.IsLive {
+			statusCounts[entry.Status]++
+		}
 	}
 	for status, count := range statusCounts {
 		fmt.Printf("- HTTP %d: %d services\n", status, count)
 	}
 	fmt.Println()
 
-	// TLS certificate information
-	if len(result.TLSAssets) > 0 {
-		fmt.Printf("🔐 TLS Certificate Analysis:\n")
-		for _, cert := range result.TLSAssets {
-			fmt.Printf("- %s: %d alternative names\n", cert.Domain, len(cert.SubjectANs))
+	// TLS certificate information (simplified for new structure)
+	fmt.Printf("🔐 TLS Certificate Analysis:\n")
+	httpsDomains := 0
+	for _, entry := range result.Domains {
+		if strings.HasPrefix(entry.Domain, "https://") {
+			httpsDomains++
 		}
-		fmt.Println()
 	}
+	fmt.Printf("- HTTPS enabled domains: %d\n\n", httpsDomains)
 
 	// High-value targets (example keywords for demonstration)
 	fmt.Printf("🎯 High-Value Targets:\n")
 	highValueKeywords := []string{"portal", "intranet", "internal"}
-	for _, service := range result.ActiveServices {
-		for _, keyword := range highValueKeywords {
-			if containsKeyword(service.URL, keyword) {
-				fmt.Printf("- %s [%d] - Contains '%s'\n", service.URL, service.StatusCode, keyword)
-				break
+	for _, entry := range result.Domains {
+		if entry.IsLive {
+			for _, keyword := range highValueKeywords {
+				if containsKeyword(entry.Domain, keyword) {
+					fmt.Printf("- %s [%d] - Contains '%s'\n", entry.Domain, entry.Status, keyword)
+					break
+				}
 			}
 		}
 	}
@@ -118,8 +112,10 @@ func generateEnterpriseReport(result *domainscan.AssetDiscoveryResult) {
 
 	// All discovered services
 	fmt.Printf("📝 Complete Service Inventory:\n")
-	for _, service := range result.ActiveServices {
-		fmt.Printf("- %s [%d]\n", service.URL, service.StatusCode)
+	for _, entry := range result.Domains {
+		if entry.IsLive {
+			fmt.Printf("- %s [%d]\n", entry.Domain, entry.Status)
+		}
 	}
 
 	// Error summary

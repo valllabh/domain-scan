@@ -81,8 +81,8 @@ This is an open source project maintained on a best-effort basis:
 
 ## Dependency Security
 
-### External Tools
-domain-scan depends on these security tools:
+### Integrated Security Tools
+domain-scan integrates these security tools:
 - **subfinder** (ProjectDiscovery) - Passive subdomain enumeration
 - **httpx** (ProjectDiscovery) - HTTP probing and TLS analysis
 

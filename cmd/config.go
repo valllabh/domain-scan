@@ -15,16 +15,15 @@ import (
 var configCmd = &cobra.Command{
 	Use:   "config",
 	Short: "Manage configuration settings",
-	Long: `Manage domain-scan configuration settings including profiles,
-keywords, ports, and discovery options. Configuration is stored in
-YAML format and supports profiles for different scanning scenarios.`,
+	Long: `Manage domain-scan configuration settings including keywords,
+ports, and discovery options. Configuration is stored in YAML format.`,
 }
 
 // configShowCmd shows the current configuration
 var configShowCmd = &cobra.Command{
 	Use:   "show",
 	Short: "Show current configuration",
-	Long:  `Display the current configuration including all settings and profiles.`,
+	Long:  `Display the current configuration including all settings.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return showConfig()
 	},
@@ -190,7 +189,6 @@ func initConfigFile() error {
 func createDefaultConfig(filename string) error {
 	defaultConfig := `# Domain-scan configuration file
 discovery:
-  max_subdomains: 1000
   timeout: 10
   threads: 50
   passive_enabled: true
@@ -204,20 +202,6 @@ ports:
   enterprise: [80, 443, 8080, 8443, 8000, 9000, 8443]
   
 keywords: []
-
-profiles:
-  quick:
-    max_subdomains: 100
-    ports: [80, 443]
-    timeout: 5
-  comprehensive:
-    max_subdomains: 5000
-    ports: [80, 443, 8080, 8443, 3000, 8000, 8888, 9000]
-    timeout: 15
-
-dependencies:
-  auto_install: true
-  check_paths: true
 `
 
 	return os.WriteFile(filename, []byte(defaultConfig), 0600)

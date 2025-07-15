@@ -8,7 +8,7 @@ require (
 	github.com/projectdiscovery/subfinder/v2 v2.8.0
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.1
-	go.uber.org/zap v1.21.0
+	go.uber.org/zap v1.27.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 

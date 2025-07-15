@@ -5,16 +5,15 @@ import (
 	"time"
 )
 
+// DomainEntry is now in types package
+type DomainEntry = types.DomainEntry
+
 // AssetDiscoveryResult represents the result of a domain asset discovery scan
 type AssetDiscoveryResult struct {
-	Subdomains     []string         `json:"subdomains"`
-	ActiveServices []types.WebAsset `json:"active_services"`
-	TLSAssets      []types.TLSAsset `json:"tls_assets"`
-	Statistics     DiscoveryStats   `json:"statistics"`
-	Errors         []error          `json:"errors,omitempty"`
+	Domains    map[string]*DomainEntry `json:"domains"` // Main output domains map
+	Statistics DiscoveryStats          `json:"statistics"`
+	Errors     []error                 `json:"errors,omitempty"`
 }
-
-// These types are now in pkg/types
 
 // DiscoveryStats contains statistics about the discovery process
 type DiscoveryStats struct {
@@ -31,8 +30,6 @@ type DiscoveryStats struct {
 type ScanRequest struct {
 	Domains             []string      `json:"domains"`
 	Keywords            []string      `json:"keywords,omitempty"`
-	Ports               []int         `json:"ports,omitempty"`
-	MaxSubdomains       int           `json:"max_subdomains,omitempty"`
 	MaxDiscoveryRounds  int           `json:"max_discovery_rounds,omitempty"`
 	Timeout             time.Duration `json:"timeout,omitempty"`
 	EnablePassive       bool          `json:"enable_passive"`
@@ -46,8 +43,6 @@ func DefaultScanRequest(domains []string) *ScanRequest {
 	return &ScanRequest{
 		Domains:             domains,
 		Keywords:            []string{},
-		Ports:               []int{80, 443, 8080, 8443, 3000, 8000, 8888},
-		MaxSubdomains:       1000,
 		MaxDiscoveryRounds:  3,
 		Timeout:             10 * time.Second,
 		EnablePassive:       true,

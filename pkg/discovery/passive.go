@@ -2,67 +2,91 @@ package discovery
 
 import (
 	"context"
-	"fmt"
+	"strings"
 
 	"github.com/projectdiscovery/subfinder/v2/pkg/resolve"
 	"github.com/projectdiscovery/subfinder/v2/pkg/runner"
+	"go.uber.org/zap"
 )
 
-// ProgressCallback defines the interface for progress reporting during discovery
-// This is kept for backward compatibility but is no longer used in the queue-based system
-type ProgressCallback interface {
-	// OnDomainTraceFound is called when any domain is discovered
-	OnDomainTraceFound(domain string, totalFound int)
-
-	// OnLiveDomainFound is called when a live domain is verified
-	OnLiveDomainFound(domain string, url string, totalLive int)
-}
-
-// PassiveDiscovery performs passive subdomain discovery using subfinder SDK with progress reporting
-func PassiveDiscovery(ctx context.Context, domains []string, progress ProgressCallback) ([]string, error) {
-	var subdomains []string
-	totalFound := 0
+// PassiveDiscoveryWithLogger performs passive subdomain discovery using subfinder SDK with logging
+func PassiveDiscoveryWithLogger(ctx context.Context, domains []string, logger *zap.SugaredLogger) ([]string, error) {
+	// Use a map to track unique subdomains and avoid duplicates
+	uniqueSubdomains := make(map[string]bool)
 
 	if len(domains) == 0 {
-		return subdomains, nil
+		return nil, nil
 	}
 
-	// Enumerate subdomains for each domain
-	for _, domain := range domains {
-		// Create subfinder options with ResultCallback for memory-efficient progress reporting
-		options := &runner.Options{
-			Threads:            10,         // Reasonable default for concurrent enumeration
-			Timeout:            30,         // 30 second timeout per source
-			MaxEnumerationTime: 10,         // 10 minute max per domain
-			Resolvers:          []string{}, // Use default resolvers
-			All:                true,       // Use all available sources
-			Silent:             true,       // Silent mode for clean output
-			Verbose:            false,      // Disable verbose logging
-			RemoveWildcard:     false,      // Don't remove wildcards (faster)
-			CaptureSources:     false,      // Don't capture source information
-			ResultCallback: func(result *resolve.HostEntry) {
-				// This callback is called for each unique subdomain found
-				subdomains = append(subdomains, result.Host)
-				totalFound++
+	if logger != nil {
+		logger.Infof("Starting passive discovery for %d domains", len(domains))
+		logger.Debugf("Domains to process: %v", domains)
+	}
 
-				// Report progress if callback is provided
-				if progress != nil {
-					progress.OnDomainTraceFound(result.Host, totalFound)
+	// Create subfinder options with ResultCallback for memory-efficient progress reporting
+	options := &runner.Options{
+		Threads:            10,         // Reasonable default for concurrent enumeration
+		Timeout:            30,         // 30 second timeout per source
+		MaxEnumerationTime: 10,         // 10 minute max per domain
+		Resolvers:          []string{}, // Use default resolvers
+		All:                true,       // Use all available sources
+		Verbose:            false,      // Disable verbose logging
+		RemoveWildcard:     false,      // Don't remove wildcards (faster)
+		CaptureSources:     false,      // Don't capture source information
+		ResultCallback: func(result *resolve.HostEntry) {
+			// Only add if not already seen (deduplication)
+			if !uniqueSubdomains[result.Host] {
+				uniqueSubdomains[result.Host] = true
+				if logger != nil {
+					logger.Debugf("Found subdomain: %s (total unique: %d)", result.Host, len(uniqueSubdomains))
 				}
-			},
-		}
+			}
+		},
+	}
 
-		// Initialize subfinder runner
-		subfinderRunner, err := runner.NewRunner(options)
-		if err != nil {
-			return nil, fmt.Errorf("failed to initialize subfinder: %w", err)
+	// Initialize subfinder runner
+	if logger != nil {
+		logger.Debugf("Initializing subfinder runner for %d domains", len(domains))
+	}
+	subfinderRunner, err := runner.NewRunner(options)
+	if err != nil {
+		if logger != nil {
+			logger.Errorf("Failed to initialize subfinder runner: %v", err)
 		}
+		return nil, err
+	}
 
-		// Run enumeration with context - no writers needed since we use ResultCallback
-		_, err = subfinderRunner.EnumerateSingleDomainWithCtx(ctx, domain, nil)
-		if err != nil {
-			// Continue with other domains if one fails
-			continue
+	// Run enumeration with context using EnumerateMultipleDomainsWithCtx for bulk processing
+	if logger != nil {
+		logger.Debugf("Starting bulk enumeration for domains: %v", domains)
+	}
+
+	// Convert domains slice to io.Reader (one domain per line)
+	domainsText := strings.Join(domains, "\n")
+	domainsReader := strings.NewReader(domainsText)
+
+	err = subfinderRunner.EnumerateMultipleDomainsWithCtx(ctx, domainsReader, nil)
+	if err != nil {
+		if logger != nil {
+			logger.Errorf("Bulk enumeration failed: %v", err)
+		}
+		return nil, err
+	}
+
+	if logger != nil {
+		logger.Debugf("Bulk enumeration completed successfully")
+	}
+
+	// Convert map keys to slice for return
+	subdomains := make([]string, 0, len(uniqueSubdomains))
+	for subdomain := range uniqueSubdomains {
+		subdomains = append(subdomains, subdomain)
+	}
+
+	if logger != nil {
+		logger.Infof("Passive discovery completed: found %d unique subdomains", len(subdomains))
+		if len(subdomains) > 0 {
+			logger.Debugf("First few subdomains found: %v", subdomains[:min(5, len(subdomains))])
 		}
 	}
 

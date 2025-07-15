@@ -30,7 +30,7 @@ func TestPassiveDiscovery(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := PassiveDiscovery(ctx, tt.domains, nil)
+			result, err := PassiveDiscoveryWithLogger(ctx, tt.domains, nil)
 
 			if tt.expectError && err == nil {
 				t.Error("Expected error but got none")

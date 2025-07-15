@@ -13,10 +13,6 @@ func TestDefaultConfig(t *testing.T) {
 	}
 
 	// Test discovery defaults
-	if config.Discovery.MaxSubdomains != 1000 {
-		t.Errorf("Expected MaxSubdomains to be 1000, got %d", config.Discovery.MaxSubdomains)
-	}
-
 	if config.Discovery.Timeout != 10*time.Second {
 		t.Errorf("Expected Timeout to be 10s, got %v", config.Discovery.Timeout)
 	}
@@ -37,25 +33,13 @@ func TestDefaultConfig(t *testing.T) {
 		t.Error("Expected HTTPEnabled to be true")
 	}
 
-	// Test port defaults
-	expectedDefaultPorts := []int{80, 443, 8080, 8443, 3000, 8000, 8888}
-	if len(config.Ports.Default) != len(expectedDefaultPorts) {
-		t.Errorf("Expected %d default ports, got %d", len(expectedDefaultPorts), len(config.Ports.Default))
-	}
+	// Port configuration removed - httpx auto-detects ports
 
 	// Test keywords defaults (should be empty by default)
 	if len(config.Keywords) != 0 {
 		t.Errorf("Expected 0 default keywords, got %d", len(config.Keywords))
 	}
 
-	// Test dependencies defaults
-	if !config.Dependencies.AutoInstall {
-		t.Error("Expected AutoInstall to be true")
-	}
-
-	if !config.Dependencies.CheckPaths {
-		t.Error("Expected CheckPaths to be true")
-	}
 }
 
 func TestConfigValidate(t *testing.T) {
@@ -68,52 +52,38 @@ func TestConfigValidate(t *testing.T) {
 			name: "valid config",
 			config: &Config{
 				Discovery: DiscoveryConfig{
-					MaxSubdomains: 500,
-					Timeout:       5 * time.Second,
-					Threads:       25,
-				},
-				Ports: PortConfig{
-					Default: []int{80, 443},
+					Timeout: 5 * time.Second,
+					Threads: 25,
 				},
 			},
 			expect: func(c *Config) bool {
-				return c.Discovery.MaxSubdomains == 500 &&
-					c.Discovery.Timeout == 5*time.Second &&
-					c.Discovery.Threads == 25 &&
-					len(c.Ports.Default) == 2
+				return c.Discovery.Timeout == 5*time.Second &&
+					c.Discovery.Threads == 25
 			},
 		},
 		{
 			name: "zero values get defaults",
 			config: &Config{
 				Discovery: DiscoveryConfig{
-					MaxSubdomains: 0,
-					Timeout:       0,
-					Threads:       0,
-				},
-				Ports: PortConfig{
-					Default: []int{},
+					Timeout: 0,
+					Threads: 0,
 				},
 			},
 			expect: func(c *Config) bool {
-				return c.Discovery.MaxSubdomains == 1000 &&
-					c.Discovery.Timeout == 10*time.Second &&
-					c.Discovery.Threads == 50 &&
-					len(c.Ports.Default) == 7 // default ports
+				return c.Discovery.Timeout == 10*time.Second &&
+					c.Discovery.Threads == 50
 			},
 		},
 		{
 			name: "negative values get defaults",
 			config: &Config{
 				Discovery: DiscoveryConfig{
-					MaxSubdomains: -1,
-					Timeout:       -1,
-					Threads:       -1,
+					Timeout: -1,
+					Threads: -1,
 				},
 			},
 			expect: func(c *Config) bool {
-				return c.Discovery.MaxSubdomains == 1000 &&
-					c.Discovery.Timeout == 10*time.Second &&
+				return c.Discovery.Timeout == 10*time.Second &&
 					c.Discovery.Threads == 50
 			},
 		},

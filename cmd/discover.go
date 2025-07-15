@@ -14,10 +14,10 @@ import (
 	"github.com/spf13/viper"
 	"github.com/valllabh/domain-scan/pkg/domainscan"
 	"github.com/valllabh/domain-scan/pkg/utils"
-	"go.uber.org/zap"
 )
 
-// DomainResult represents the output format for domains.json
+// DomainResult represents the structured output format for domains.json
+// containing both discovered and live domains for consumption by other tools
 type DomainResult struct {
 	AllDomains  []string `json:"all-domains"`
 	LiveDomains []string `json:"live-domains"`
@@ -25,19 +25,15 @@ type DomainResult struct {
 
 var (
 	keywords      []string
-	ports         []int
 	maxSubdomains int
 	timeout       int
 	threads       int
-	profile       string
 	outputFile    string
 	outputFormat  string
 	resultDir     string
-	enablePassive bool
-	enableCert    bool
-	enableHTTP    bool
 	quiet         bool
 	debug         bool
+	logLevel      string
 )
 
 // discoverCmd represents the discover command
@@ -47,7 +43,7 @@ var discoverCmd = &cobra.Command{
 	Long: `Discover performs comprehensive web asset discovery including:
 - Passive subdomain enumeration using subfinder
 - TLS certificate analysis for additional subdomains with organizational filtering
-- HTTP/HTTPS service verification on specified ports
+- HTTP/HTTPS service verification (httpx auto-detects ports)
 
 The results include all discovered subdomains and active web services.
 
@@ -58,17 +54,17 @@ certificate, keywords ensure only relevant domains are included in results.`,
 	Example: `  # Basic discovery
   domain-scan discover example.com
 
-  # Use a specific profile
-  domain-scan discover example.com --profile quick
+  # Scan multiple domains
+  domain-scan discover example.com domain2.com
 
-  # Additional keywords (combined with auto-extracted) and custom ports
-  domain-scan discover example.com --keywords staging,prod --ports 80,443,8080
+  # Additional keywords (combined with auto-extracted)
+  domain-scan discover example.com --keywords staging,prod
 
   # Output to file in JSON format
   domain-scan discover example.com --output results.json --format json
 
-  # Disable specific discovery methods
-  domain-scan discover example.com --no-passive --no-cert`,
+  # Multiple domains with custom settings
+  domain-scan discover example.com domain2.com --max-subdomains 500`,
 	Args: cobra.MinimumNArgs(1),
 	RunE: runDiscover,
 }
@@ -78,45 +74,29 @@ func init() {
 
 	// Discovery flags
 	discoverCmd.Flags().StringSliceVarP(&keywords, "keywords", "k", []string{}, "Additional keywords for filtering SSL certificate domains (auto-extracted from domains and combined with provided keywords)")
-	discoverCmd.Flags().IntSliceVarP(&ports, "ports", "p", []int{}, "Ports to scan (comma-separated)")
 	discoverCmd.Flags().IntVar(&maxSubdomains, "max-subdomains", 0, "Maximum subdomains to scan for HTTP services")
 	discoverCmd.Flags().IntVar(&timeout, "timeout", 0, "Timeout in seconds")
 	discoverCmd.Flags().IntVar(&threads, "threads", 0, "Number of threads")
-	discoverCmd.Flags().StringVar(&profile, "profile", "", "Configuration profile (quick, comprehensive)")
 
 	// Output flags
 	discoverCmd.Flags().StringVarP(&outputFile, "output", "o", "", "Output file (default: stdout)")
 	discoverCmd.Flags().StringVarP(&outputFormat, "format", "f", "text", "Output format (text, json)")
 	discoverCmd.Flags().StringVar(&resultDir, "result-dir", "./result", "Directory to save results (creates {result-dir}/{first-domain}/domains.json)")
 	discoverCmd.Flags().BoolVarP(&quiet, "quiet", "q", false, "Quiet mode (suppress progress output)")
-	discoverCmd.Flags().BoolVar(&debug, "debug", false, "Enable debug logging for troubleshooting")
+	discoverCmd.Flags().BoolVar(&debug, "debug", false, "Enable debug logging for troubleshooting (deprecated, use --loglevel debug)")
+	discoverCmd.Flags().StringVar(&logLevel, "loglevel", "", "Log level (trace, debug, info, warn, error, silent)")
 
-	// Method toggles
-	discoverCmd.Flags().BoolVar(&enablePassive, "passive", true, "Enable passive subdomain discovery")
-	discoverCmd.Flags().BoolVar(&enableCert, "cert", true, "Enable TLS certificate analysis")
-	discoverCmd.Flags().BoolVar(&enableHTTP, "http", true, "Enable HTTP service verification")
-	discoverCmd.Flags().Bool("no-passive", false, "Disable passive subdomain discovery")
-	discoverCmd.Flags().Bool("no-cert", false, "Disable TLS certificate analysis")
-	discoverCmd.Flags().Bool("no-http", false, "Disable HTTP service verification")
+	// All discovery methods are enabled by default
 
-	// Bind flags to viper
-	if err := viper.BindPFlag("discovery.max_subdomains", discoverCmd.Flags().Lookup("max-subdomains")); err != nil {
-		log.Printf("Warning: failed to bind max-subdomains flag: %v", err)
-	}
-	if err := viper.BindPFlag("discovery.timeout", discoverCmd.Flags().Lookup("timeout")); err != nil {
-		log.Printf("Warning: failed to bind timeout flag: %v", err)
-	}
-	if err := viper.BindPFlag("discovery.threads", discoverCmd.Flags().Lookup("threads")); err != nil {
-		log.Printf("Warning: failed to bind threads flag: %v", err)
-	}
-	if err := viper.BindPFlag("keywords", discoverCmd.Flags().Lookup("keywords")); err != nil {
-		log.Printf("Warning: failed to bind keywords flag: %v", err)
-	}
-	if err := viper.BindPFlag("ports.custom", discoverCmd.Flags().Lookup("ports")); err != nil {
-		log.Printf("Warning: failed to bind ports flag: %v", err)
-	}
+	_ = viper.BindPFlag("discovery.max_subdomains", discoverCmd.Flags().Lookup("max-subdomains"))
+	_ = viper.BindPFlag("discovery.timeout", discoverCmd.Flags().Lookup("timeout"))
+	_ = viper.BindPFlag("discovery.threads", discoverCmd.Flags().Lookup("threads"))
+	_ = viper.BindPFlag("keywords", discoverCmd.Flags().Lookup("keywords"))
+	_ = viper.BindPFlag("log_level", discoverCmd.Flags().Lookup("loglevel"))
 }
 
+// runDiscover executes the domain discovery command with the provided arguments.
+// Orchestrates configuration loading, scanner setup, and result output.
 func runDiscover(cmd *cobra.Command, args []string) error {
 	// Load configuration
 	config := loadDiscoveryConfig()
@@ -126,22 +106,6 @@ func runDiscover(cmd *cobra.Command, args []string) error {
 
 	// Create scanner
 	scanner := domainscan.New(config)
-
-	// Set debug logger if debug mode enabled
-	if debug {
-		zapConfig := zap.NewDevelopmentConfig()
-		zapConfig.Level = zap.NewAtomicLevelAt(zap.DebugLevel)
-		zapConfig.OutputPaths = []string{"stderr"}
-		logger, err := zapConfig.Build()
-		if err != nil {
-			log.Printf("Failed to create debug logger: %v", err)
-		} else {
-			sugar := logger.Sugar()
-			scanner.SetSugaredLogger(sugar)
-			sugar.Infof("Debug mode enabled")
-			sugar.Infof("Configuration: %+v", config)
-		}
-	}
 
 	// Set progress callback for CLI (unless quiet mode)
 	if !quiet {
@@ -153,45 +117,36 @@ func runDiscover(cmd *cobra.Command, args []string) error {
 	req := &domainscan.ScanRequest{
 		Domains:             args,
 		Keywords:            keywords,
-		Ports:               getPorts(config),
-		MaxSubdomains:       getMaxSubdomains(config),
 		MaxDiscoveryRounds:  config.Discovery.MaxDiscoveryRounds,
 		Timeout:             getTimeout(config),
-		EnablePassive:       getEnablePassive(cmd),
-		EnableCertScan:      getEnableCert(cmd),
-		EnableHTTPScan:      getEnableHTTP(cmd),
+		EnablePassive:       true, // Always enabled
+		EnableCertScan:      true, // Always enabled
+		EnableHTTPScan:      true, // Always enabled
 		EnableSisterDomains: config.Discovery.SisterDomainEnabled,
 	}
 
-	// Extract keywords from domains automatically
-	extractedKeywords := utils.ExtractKeywordsFromDomains(req.Domains)
-
-	// Combine extracted keywords with manually provided keywords and config keywords
-	keywordMap := make(map[string]bool)
-
-	// Add extracted keywords first
-	for _, keyword := range extractedKeywords {
-		keywordMap[keyword] = true
+	// Combine all keyword sources efficiently
+	allKeywordSources := [][]string{
+		utils.ExtractKeywordsFromDomains(req.Domains),
+		req.Keywords,
 	}
-
-	// Add manually provided keywords (from --keywords flag)
-	for _, keyword := range req.Keywords {
-		keywordMap[keyword] = true
-	}
-
-	// Add config keywords if no manual keywords were provided
 	if len(keywords) == 0 {
-		for _, keyword := range config.Keywords {
-			keywordMap[keyword] = true
+		allKeywordSources = append(allKeywordSources, config.Keywords)
+	}
+
+	keywordMap := make(map[string]bool)
+	for _, keywordList := range allKeywordSources {
+		for _, keyword := range keywordList {
+			if keyword != "" {
+				keywordMap[keyword] = true
+			}
 		}
 	}
 
-	// Convert back to slice
-	var finalKeywords []string
+	req.Keywords = make([]string, 0, len(keywordMap))
 	for keyword := range keywordMap {
-		finalKeywords = append(finalKeywords, keyword)
+		req.Keywords = append(req.Keywords, keyword)
 	}
-	req.Keywords = finalKeywords
 
 	// Run discovery
 	ctx := context.Background()
@@ -210,13 +165,12 @@ func runDiscover(cmd *cobra.Command, args []string) error {
 	return createDomainsJSON(result, args[0])
 }
 
+// loadDiscoveryConfig creates and loads configuration from viper settings.
+// Applies configuration file values and environment variables.
 func loadDiscoveryConfig() *domainscan.Config {
 	config := domainscan.DefaultConfig()
 
 	// Load from viper
-	if viper.IsSet("discovery.max_subdomains") {
-		config.Discovery.MaxSubdomains = viper.GetInt("discovery.max_subdomains")
-	}
 	if viper.IsSet("discovery.timeout") {
 		config.Discovery.Timeout = time.Duration(viper.GetInt("discovery.timeout")) * time.Second
 	}
@@ -226,19 +180,16 @@ func loadDiscoveryConfig() *domainscan.Config {
 	if viper.IsSet("keywords") {
 		config.Keywords = viper.GetStringSlice("keywords")
 	}
-
-	// Apply profile
-	if profile != "" {
-		applyProfile(config, profile)
+	if viper.IsSet("log_level") {
+		config.LogLevel = viper.GetString("log_level")
 	}
 
 	return config
 }
 
+// applyFlagOverrides applies command-line flag values to the configuration.
+// Only applies values for flags that were explicitly changed by the user.
 func applyFlagOverrides(cmd *cobra.Command, config *domainscan.Config) {
-	if cmd.Flags().Changed("max-subdomains") {
-		config.Discovery.MaxSubdomains = maxSubdomains
-	}
 	if cmd.Flags().Changed("timeout") {
 		config.Discovery.Timeout = time.Duration(timeout) * time.Second
 	}
@@ -248,38 +199,17 @@ func applyFlagOverrides(cmd *cobra.Command, config *domainscan.Config) {
 	if cmd.Flags().Changed("keywords") {
 		config.Keywords = keywords
 	}
-}
-
-func applyProfile(config *domainscan.Config, profileName string) {
-	switch profileName {
-	case "quick":
-		config.Discovery.MaxSubdomains = 100
-		config.Discovery.Timeout = 5 * time.Second
-		config.Ports.Custom = []int{80, 443}
-	case "comprehensive":
-		config.Discovery.MaxSubdomains = 5000
-		config.Discovery.Timeout = 15 * time.Second
-		config.Ports.Custom = []int{80, 443, 8080, 8443, 3000, 8000, 8888, 9000}
+	// Handle legacy --debug flag and new --loglevel flag
+	if cmd.Flags().Changed("debug") && debug {
+		config.LogLevel = "debug"
+	}
+	if cmd.Flags().Changed("loglevel") {
+		config.LogLevel = logLevel
 	}
 }
 
-func getPorts(config *domainscan.Config) []int {
-	if len(ports) > 0 {
-		return ports
-	}
-	if len(config.Ports.Custom) > 0 {
-		return config.Ports.Custom
-	}
-	return config.Ports.Default
-}
-
-func getMaxSubdomains(config *domainscan.Config) int {
-	if maxSubdomains > 0 {
-		return maxSubdomains
-	}
-	return config.Discovery.MaxSubdomains
-}
-
+// getTimeout returns the effective timeout duration.
+// Prioritizes command-line flag over configuration value.
 func getTimeout(config *domainscan.Config) time.Duration {
 	if timeout > 0 {
 		return time.Duration(timeout) * time.Second
@@ -287,30 +217,8 @@ func getTimeout(config *domainscan.Config) time.Duration {
 	return config.Discovery.Timeout
 }
 
-func getEnablePassive(cmd *cobra.Command) bool {
-	if cmd.Flags().Changed("no-passive") {
-		noPassive, _ := cmd.Flags().GetBool("no-passive")
-		return !noPassive
-	}
-	return enablePassive
-}
-
-func getEnableCert(cmd *cobra.Command) bool {
-	if cmd.Flags().Changed("no-cert") {
-		noCert, _ := cmd.Flags().GetBool("no-cert")
-		return !noCert
-	}
-	return enableCert
-}
-
-func getEnableHTTP(cmd *cobra.Command) bool {
-	if cmd.Flags().Changed("no-http") {
-		noHTTP, _ := cmd.Flags().GetBool("no-http")
-		return !noHTTP
-	}
-	return enableHTTP
-}
-
+// outputResults formats and outputs discovery results to stdout or file.
+// Supports both text and JSON output formats with live domain highlighting.
 func outputResults(result *domainscan.AssetDiscoveryResult) error {
 	var output []byte
 	var err error
@@ -323,8 +231,13 @@ func outputResults(result *domainscan.AssetDiscoveryResult) error {
 		}
 	default: // text
 		var sb strings.Builder
-		for _, service := range result.ActiveServices {
-			sb.WriteString(service.URL + "\n")
+		for _, entry := range result.Domains {
+			if entry.IsLive {
+				// Color live domains green
+				sb.WriteString(fmt.Sprintf("%s \033[32m[%d]\033[0m\n", entry.Domain, entry.Status))
+			} else {
+				sb.WriteString(fmt.Sprintf("%s [%d]\n", entry.Domain, entry.Status))
+			}
 		}
 		output = []byte(sb.String())
 	}
@@ -337,6 +250,8 @@ func outputResults(result *domainscan.AssetDiscoveryResult) error {
 	return nil
 }
 
+// createDomainsJSON creates a structured domains.json file in the result directory.
+// Separates all discovered domains from live domains for downstream tool consumption.
 func createDomainsJSON(result *domainscan.AssetDiscoveryResult, firstDomain string) error {
 	// Create result directory structure
 	domainDir := filepath.Join(resultDir, firstDomain)
@@ -344,32 +259,20 @@ func createDomainsJSON(result *domainscan.AssetDiscoveryResult, firstDomain stri
 		return fmt.Errorf("failed to create result directory: %w", err)
 	}
 
-	// Prepare all domains (subdomains + active service domains)
-	allDomainsMap := make(map[string]bool)
-
-	// Add subdomains
-	for _, subdomain := range result.Subdomains {
-		allDomainsMap[subdomain] = true
-	}
-
-	// Add domains from active services
-	for _, service := range result.ActiveServices {
-		// Extract domain from URL
-		if domain := extractDomainFromURL(service.URL); domain != "" {
-			allDomainsMap[domain] = true
-		}
-	}
-
-	// Convert map to slice
+	// Prepare all domains and live domains from result.Domains
 	var allDomains []string
-	for domain := range allDomainsMap {
-		allDomains = append(allDomains, domain)
-	}
-
-	// Prepare live domains (URLs from active services)
 	var liveDomains []string
-	for _, service := range result.ActiveServices {
-		liveDomains = append(liveDomains, service.URL)
+
+	for domainURL, entry := range result.Domains {
+		// Extract domain name from URL for all domains
+		if domain := extractDomainFromURL(domainURL); domain != "" {
+			allDomains = append(allDomains, domain)
+		}
+
+		// Add live domains with full URL
+		if entry.IsLive {
+			liveDomains = append(liveDomains, domainURL)
+		}
 	}
 
 	// Create domain result structure
@@ -396,6 +299,8 @@ func createDomainsJSON(result *domainscan.AssetDiscoveryResult, firstDomain stri
 	return nil
 }
 
+// extractDomainFromURL extracts the domain name from a URL.
+// Removes protocol, port, and path components to return clean domain.
 func extractDomainFromURL(url string) string {
 	// Remove protocol
 	if strings.HasPrefix(url, "http://") {
@@ -415,17 +320,20 @@ func extractDomainFromURL(url string) string {
 	return url
 }
 
-// DebugLogger implements the Logger interface for debug output
+// DebugLogger implements the Logger interface for conditional debug output.
+// Provides backward compatibility with legacy debug flag functionality.
 type DebugLogger struct {
 	enabled bool
 }
 
+// Printf outputs formatted debug message if debug mode is enabled.
 func (d *DebugLogger) Printf(format string, v ...interface{}) {
 	if d.enabled {
 		log.Printf(format, v...)
 	}
 }
 
+// Println outputs debug message if debug mode is enabled.
 func (d *DebugLogger) Println(v ...interface{}) {
 	if d.enabled {
 		log.Println(v...)

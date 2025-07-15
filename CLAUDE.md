@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-domain-scan is a comprehensive Go-based security tool that orchestrates [ProjectDiscovery's](https://projectdiscovery.io) excellent security tools ([subfinder](https://github.com/projectdiscovery/subfinder) and [httpx](https://github.com/projectdiscovery/httpx)) to discover and verify active subdomains through multiple techniques including passive enumeration, TLS certificate analysis, and HTTP service verification. The tool is designed for defensive security purposes to help organizations understand their external attack surface.
+domain-scan is a comprehensive Go-based security tool that integrates [ProjectDiscovery's](https://projectdiscovery.io) excellent security tools ([subfinder](https://github.com/projectdiscovery/subfinder) and [httpx](https://github.com/projectdiscovery/httpx)) to discover and verify active subdomains through multiple techniques including passive enumeration, TLS certificate analysis, and HTTP service verification. The tool is designed for defensive security purposes to help organizations understand their external attack surface.
 
 ## Core Architecture
 
@@ -34,7 +34,7 @@ domain-scan is a comprehensive Go-based security tool that orchestrates [Project
 
 ### Configuration System
 - Uses Viper for configuration management with YAML support
-- Default config in `config.yaml` with profiles (quick, comprehensive)
+- Default config in `config.yaml` with customizable settings
 - Supports environment variables and CLI flag overrides
 - Configuration hierarchy: CLI flags > config file > defaults
 
@@ -62,7 +62,7 @@ make dev
 ### Running During Development
 ```bash
 # Run with custom arguments
-make run ARGS="discover example.com --profile quick"
+make run ARGS="discover example.com --keywords staging,prod"
 
 # Quick shortcuts for common commands
 make run-help          # Show help
@@ -70,9 +70,9 @@ make run-discover      # Test discovery with example.com
 make run-config        # Show current configuration
 
 # Examples of custom runs
-make run ARGS="discover example.com --keywords staging,prod --ports 80,443"
-make run ARGS="discover multiple.com domains.com --profile comprehensive"
-make run ARGS="config --help"
+make run ARGS="discover example.com --keywords staging,prod --timeout 15"
+make run ARGS="discover multiple.com domains.com --format json --quiet"
+make run ARGS="config show"
 ```
 
 ### Testing
@@ -126,17 +126,13 @@ make snapshot
 make release
 ```
 
-## External Dependencies
+## Integrated Security Tools
 
-The tool requires these excellent security tools from [ProjectDiscovery](https://projectdiscovery.io):
+The tool integrates these excellent security tools from [ProjectDiscovery](https://projectdiscovery.io):
 - **[subfinder](https://github.com/projectdiscovery/subfinder)** - For passive subdomain enumeration from multiple sources
 - **[httpx](https://github.com/projectdiscovery/httpx)** - For HTTP probing and TLS certificate analysis
 
-These tools must be installed manually and available in your PATH:
-```bash
-go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest
-go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest
-```
+These tools are now integrated directly into domain-scan, eliminating the need for separate installation.
 
 ## Library Usage Pattern
 
@@ -205,7 +201,6 @@ req := &domainscan.ScanRequest{
     Domains:             []string{"example.com"},
     Keywords:            []string{}, // Keywords are extracted from domains automatically
     Ports:               []int{80, 443, 8080},
-    MaxSubdomains:       1000,
     MaxDiscoveryRounds:  3,
     EnablePassive:       true,
     EnableCertScan:      true,
@@ -257,7 +252,6 @@ The tool uses a message queue-based architecture for efficient domain processing
 
 ## Key Configuration Options
 
-- **discovery.max_subdomains**: Limits HTTP scanning to prevent overwhelming targets
 - **discovery.timeout**: Per-request timeout for HTTP operations
 - **discovery.threads**: Concurrency level for HTTP scanning
 - **ports.default**: Default ports for HTTP service verification
@@ -266,7 +260,7 @@ The tool uses a message queue-based architecture for efficient domain processing
 ## Testing Strategy
 
 - Comprehensive unit tests in `main_test.go`
-- Integration tests that check for external tool availability
+- Integration tests for integrated security tools
 - Conditional test skipping when dependencies are missing
 - Test coverage includes edge cases like missing tools and invalid inputs
 

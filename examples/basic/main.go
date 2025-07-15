@@ -31,8 +31,10 @@ func main() {
 	fmt.Printf("- Duration: %v\n\n", result.Statistics.Duration)
 
 	fmt.Printf("🌐 Active Web Services:\n")
-	for _, service := range result.ActiveServices {
-		fmt.Printf("- %s [%d]\n", service.URL, service.StatusCode)
+	for _, entry := range result.Domains {
+		if entry.IsLive {
+			fmt.Printf("- %s [%d]\n", entry.Domain, entry.Status)
+		}
 	}
 
 	if len(result.Errors) > 0 {

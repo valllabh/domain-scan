@@ -117,7 +117,7 @@ The command line interface remains exactly the same:
 # All existing commands work identically
 domain-scan discover example.com
 domain-scan discover example.com --quiet  # Silent mode
-domain-scan discover example.com --profile quick
+domain-scan discover example.com --keywords staging,prod
 ```
 
 The only difference is that `--quiet` mode now truly suppresses all progress output by not setting a progress callback, rather than using a logger that swallows output.

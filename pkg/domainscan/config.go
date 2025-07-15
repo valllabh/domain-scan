@@ -1,18 +1,19 @@
 package domainscan
 
-import "time"
+import (
+	"errors"
+	"time"
+)
 
 // Config represents the configuration for domain scanning
 type Config struct {
-	Discovery    DiscoveryConfig  `yaml:"discovery" json:"discovery"`
-	Ports        PortConfig       `yaml:"ports" json:"ports"`
-	Keywords     []string         `yaml:"keywords" json:"keywords"`
-	Dependencies DependencyConfig `yaml:"dependencies" json:"dependencies"`
+	Discovery DiscoveryConfig `yaml:"discovery" json:"discovery"`
+	Keywords  []string        `yaml:"keywords" json:"keywords"`
+	LogLevel  string          `yaml:"log_level" json:"log_level"`
 }
 
 // DiscoveryConfig contains settings for asset discovery
 type DiscoveryConfig struct {
-	MaxSubdomains       int           `yaml:"max_subdomains" json:"max_subdomains"`
 	MaxDiscoveryRounds  int           `yaml:"max_discovery_rounds" json:"max_discovery_rounds"`
 	Timeout             time.Duration `yaml:"timeout" json:"timeout"`
 	Threads             int           `yaml:"threads" json:"threads"`
@@ -22,27 +23,11 @@ type DiscoveryConfig struct {
 	SisterDomainEnabled bool          `yaml:"sister_domain_enabled" json:"sister_domain_enabled"`
 }
 
-// PortConfig defines port scanning configuration
-type PortConfig struct {
-	Default    []int            `yaml:"default" json:"default"`
-	Web        []int            `yaml:"web" json:"web"`
-	Dev        []int            `yaml:"dev" json:"dev"`
-	Enterprise []int            `yaml:"enterprise" json:"enterprise"`
-	Custom     []int            `yaml:"custom" json:"custom"`
-	Profiles   map[string][]int `yaml:"profiles" json:"profiles"`
-}
-
-// DependencyConfig contains dependency management settings
-type DependencyConfig struct {
-	AutoInstall bool `yaml:"auto_install" json:"auto_install"`
-	CheckPaths  bool `yaml:"check_paths" json:"check_paths"`
-}
 
 // DefaultConfig returns a default configuration
 func DefaultConfig() *Config {
 	return &Config{
 		Discovery: DiscoveryConfig{
-			MaxSubdomains:       1000,
 			MaxDiscoveryRounds:  3,
 			Timeout:             10 * time.Second,
 			Threads:             50,
@@ -51,37 +36,30 @@ func DefaultConfig() *Config {
 			HTTPEnabled:         true,
 			SisterDomainEnabled: true,
 		},
-		Ports: PortConfig{
-			Default:    []int{80, 443, 8080, 8443, 3000, 8000, 8888},
-			Web:        []int{80, 443, 8080, 8443},
-			Dev:        []int{3000, 8000, 8888, 9000},
-			Enterprise: []int{80, 443, 8080, 8443, 8000, 9000, 8443},
-			Profiles: map[string][]int{
-				"quick":         {80, 443},
-				"comprehensive": {80, 443, 8080, 8443, 3000, 8000, 8888, 9000},
-			},
-		},
 		Keywords: []string{},
-		Dependencies: DependencyConfig{
-			AutoInstall: true,
-			CheckPaths:  true,
-		},
+		LogLevel: "info",
 	}
 }
 
 // Validate validates the configuration
 func (c *Config) Validate() error {
-	if c.Discovery.MaxSubdomains <= 0 {
-		c.Discovery.MaxSubdomains = 1000
-	}
 	if c.Discovery.Timeout <= 0 {
 		c.Discovery.Timeout = 10 * time.Second
 	}
 	if c.Discovery.Threads <= 0 {
 		c.Discovery.Threads = 50
 	}
-	if len(c.Ports.Default) == 0 {
-		c.Ports.Default = []int{80, 443, 8080, 8443, 3000, 8000, 8888}
+
+	// Validate log level
+	validLogLevels := map[string]bool{
+		"trace": true, "debug": true, "info": true,
+		"warn": true, "error": true, "silent": true,
 	}
+	if c.LogLevel == "" {
+		c.LogLevel = "info"
+	} else if !validLogLevels[c.LogLevel] {
+		return errors.New("invalid log level: must be one of trace, debug, info, warn, error, silent")
+	}
+
 	return nil
 }

@@ -96,7 +96,7 @@ uninstall:
 	rm -f ${GOPATH}/bin/${BINARY_NAME}
 
 # Run the application with arguments
-# Usage: make run ARGS="discover example.com --profile quick"
+# Usage: make run ARGS="discover example.com --keywords staging,prod"
 run:
 	@echo "Running ${BINARY_NAME} with args: $(ARGS)"
 	@mkdir -p ${BUILD_DIR}
@@ -114,7 +114,7 @@ run-discover:
 	@echo "Running discover command with example.com..."
 	@mkdir -p ${BUILD_DIR}
 	$(GOBUILD) $(LDFLAGS) -o ${BUILD_DIR}/${BINARY_NAME} ${MAIN_FILE}
-	./${BUILD_DIR}/${BINARY_NAME} discover example.com --profile quick
+	./${BUILD_DIR}/${BINARY_NAME} discover example.com --keywords staging,prod
 
 run-config:
 	@echo "Running config command..."

@@ -22,7 +22,6 @@ While `subfinder` and `httpx` are incredibly powerful tools on their own, this p
 - **Keyword-Based Filtering**: Automatically extracts organization keywords from domains to filter SSL certificate SANs
 - **Structured Output**: Provides consistent JSON/YAML output with detailed statistics and metadata
 - **Library Integration**: Offers a Go library for programmatic use in other security tools
-- **Profile-Based Scanning**: Pre-configured scanning profiles (quick, comprehensive) for different use cases
 - **Queue-Based Processing**: Uses message queues for efficient concurrent domain processing
 
 **TL;DR**: This is a wrapper that orchestrates `subfinder` and `httpx` with additional logic for enterprise security workflows.
@@ -49,7 +48,7 @@ make init && make run-discover
 
 ## Overview
 
-This tool orchestrates [ProjectDiscovery's](https://projectdiscovery.io) security tools to perform comprehensive subdomain discovery and verification:
+This tool integrates [ProjectDiscovery's](https://projectdiscovery.io) security tools to perform comprehensive subdomain discovery and verification:
 
 1. **Passive Discovery**: Uses [subfinder](https://github.com/projectdiscovery/subfinder) to enumerate subdomains from passive sources
 2. **TLS Certificate Analysis**: Probes domains using [httpx](https://github.com/projectdiscovery/httpx) with TLS certificate inspection  
@@ -117,32 +116,35 @@ domain-scan discover [domains...] [flags]
 domain-scan --help
 domain-scan discover --help
 
-# Check configuration
-domain-scan config
+# Configuration management
+domain-scan config show
+domain-scan config init
+domain-scan config set discovery.timeout 15
 
 ```
 
-### Discovery Options
+### Available Options
 
+**Target and Keywords:**
 - `domains`: Target domains for subdomain discovery
-- `--keywords`: Additional keywords for filtering SSL certificate domains (automatically extracted from target domains and combined with any provided keywords)
-- `--ports`: Comma-separated ports for HTTP scanning (default: 80,443,8080,8443,3000,8000,8888)
-- `--profile`: Use predefined configuration profile (quick, comprehensive)
-- `--output`: Output file path (default: stdout)
-- `--format`: Output format (text, json)
-- `--max-subdomains`: Maximum subdomains to scan for HTTP services
-- `--timeout`: Timeout in seconds
-- `--threads`: Number of concurrent threads
-- `--quiet`: Suppress progress output
+- `--keywords/-k`: Additional keywords for filtering SSL certificate domains (auto-extracted from domains and combined with provided keywords)
 
-### Discovery Method Controls
+**Discovery Settings:**
+- `--timeout`: Timeout in seconds (default: from config)
+- `--threads`: Number of concurrent threads (default: from config)
 
-- `--passive`: Enable passive subdomain discovery (default: true)
-- `--cert`: Enable TLS certificate analysis (default: true) 
-- `--http`: Enable HTTP service verification (default: true)
-- `--no-passive`: Disable passive subdomain discovery
-- `--no-cert`: Disable TLS certificate analysis
-- `--no-http`: Disable HTTP service verification
+**Output Options:**
+- `--output/-o`: Output file path (default: stdout)
+- `--format/-f`: Output format (text, json)
+- `--result-dir`: Directory to save results (default: ./result)
+- `--quiet/-q`: Suppress progress output
+
+**Logging:**
+- `--loglevel`: Log level (trace, debug, info, warn, error, silent)
+- `--debug`: Enable debug logging (deprecated, use --loglevel debug)
+
+**Configuration:**
+- `--config`: Config file (default: $HOME/.domain-scan/config.yaml)
 
 ### Examples
 
@@ -150,38 +152,46 @@ domain-scan config
 # Basic discovery (keywords automatically extracted from domain names)
 domain-scan discover example.com
 
-# Quick scan profile (limited subdomains, basic ports)
-domain-scan discover example.com --profile quick
+# Scan multiple domains
+domain-scan discover example.com domain2.com
 
-# Comprehensive scan profile (more subdomains and ports)
-domain-scan discover example.com --profile comprehensive
+# Additional keywords (combined with auto-extracted ones)
+domain-scan discover example.com --keywords staging,prod
 
-# Additional keywords (combined with auto-extracted ones) and custom ports
-domain-scan discover example.com --keywords staging,prod --ports 80,443,8080
-
-# Multiple domains with additional keywords (auto-extracted from both domains)
-domain-scan discover example.com test.com --keywords staging,prod
+# Custom discovery settings
+domain-scan discover example.com --timeout 15 --threads 25
 
 # Save results to JSON file
 domain-scan discover example.com --output results.json --format json
 
-# Disable specific discovery methods
-domain-scan discover example.com --no-passive --no-cert
+# Custom result directory
+domain-scan discover example.com --result-dir ./my-results
 
-# Quiet mode with custom limits
-domain-scan discover example.com --quiet --max-subdomains 500 --timeout 15
+# Quiet mode with debug logging
+domain-scan discover example.com --quiet --loglevel debug
+
+# Multiple domains with custom settings
+domain-scan discover example.com domain2.com --keywords api,admin --timeout 15
 ```
 
-## Default Port Configuration
+## Configuration Management
 
-The tool scans the following ports by default:
-- **80** (HTTP)
-- **443** (HTTPS) 
-- **8080** (HTTP alternate)
-- **8443** (HTTPS alternate)
-- **3000** (Development servers)
-- **8000** (Development/testing)
-- **8888** (Development/testing)
+The tool supports configuration files for persistent settings:
+
+```bash
+# Initialize default configuration
+domain-scan config init
+
+# View current configuration
+domain-scan config show
+
+# Set configuration values
+domain-scan config set discovery.timeout 15
+domain-scan config set keywords [mycompany,staging]
+```
+
+**Default Ports:** 80, 443, 8080, 8443, 3000, 8000, 8888
+**Configuration File:** `$HOME/.domain-scan/config.yaml`
 
 ## Integration with Main Project
 
@@ -193,23 +203,14 @@ This tool can be used standalone or integrated with the main reconnaissance scri
 4. **HTTP Service Verification**: Ensures only active services are reported
 5. **Unified Output**: All active HTTP services in a single, deduplicated list
 
-## Dependencies
+## Built-in Security Tools
 
-This tool requires the amazing security tools from [ProjectDiscovery](https://projectdiscovery.io):
+This tool integrates the amazing security tools from [ProjectDiscovery](https://projectdiscovery.io):
 
-### Required Tools
 - **[subfinder](https://github.com/projectdiscovery/subfinder)** - Fast passive subdomain enumeration tool
 - **[httpx](https://github.com/projectdiscovery/httpx)** - Fast and multi-purpose HTTP toolkit for probing and TLS inspection
 
-### Installation
-These tools must be installed manually and available in your PATH:
-
-```bash
-go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest
-go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest
-```
-
-💡 **Tip**: Ensure these tools are available in your PATH before running domain-scan.
+These tools are now integrated directly into domain-scan, so no separate installation is required.
 
 ## Configuration
 
@@ -264,7 +265,6 @@ The tool provides real-time feedback through stderr:
 
 ## Limitations
 
-- Requires subfinder and httpx to be installed manually and available in PATH
 - TLS certificate analysis limited to domains with valid SSL/TLS certificates  
 - SSL certificate keyword filtering may exclude domains from shared certificates that don't match organizational keywords
 - HTTP scanning limited to specified ports
@@ -352,7 +352,7 @@ make dev
 
 ```bash
 # Run with custom arguments
-make run ARGS="discover example.com --profile quick"
+make run ARGS="discover example.com --keywords staging,prod"
 
 # Quick shortcuts for testing
 make run-help          # Show help
@@ -509,7 +509,6 @@ make snapshot
 ## Troubleshooting
 
 **Common Issues:**
-- Ensure subfinder and httpx are installed and in PATH
 - Check network connectivity for target domains
 - Verify domain names are correct and accessible
 - For large subdomain lists, consider using smaller port ranges
@@ -517,7 +516,6 @@ make snapshot
 
 **Installation Issues:**
 - For package installations, ensure you have appropriate permissions
-- For dependency issues, verify subfinder and httpx are installed and in PATH
 - For Homebrew, run `brew update` if the formula isn't found
 
 ## Security

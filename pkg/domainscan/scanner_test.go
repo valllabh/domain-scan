@@ -23,9 +23,8 @@ func TestNew(t *testing.T) {
 			name: "with custom config",
 			config: &Config{
 				Discovery: DiscoveryConfig{
-					MaxSubdomains: 500,
-					Timeout:       5 * time.Second,
-					Threads:       25,
+					Timeout: 5 * time.Second,
+					Threads: 25,
 				},
 			},
 		},
@@ -78,9 +77,8 @@ func TestScannerUpdateConfig(t *testing.T) {
 
 	newConfig := &Config{
 		Discovery: DiscoveryConfig{
-			MaxSubdomains: 500,
-			Timeout:       5 * time.Second,
-			Threads:       25,
+			Timeout: 5 * time.Second,
+			Threads: 25,
 		},
 	}
 
@@ -140,10 +138,6 @@ func TestDefaultScanRequest(t *testing.T) {
 	}
 
 	// Check defaults
-	if req.MaxSubdomains != 1000 {
-		t.Errorf("Expected MaxSubdomains to be 1000, got %d", req.MaxSubdomains)
-	}
-
 	if req.Timeout != 10*time.Second {
 		t.Errorf("Expected Timeout to be 10s, got %v", req.Timeout)
 	}

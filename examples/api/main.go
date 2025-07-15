@@ -12,11 +12,9 @@ import (
 )
 
 type ScanRequestAPI struct {
-	Domains       []string `json:"domains"`
-	Keywords      []string `json:"keywords,omitempty"`
-	Ports         []int    `json:"ports,omitempty"`
-	MaxSubdomains int      `json:"max_subdomains,omitempty"`
-	Profile       string   `json:"profile,omitempty"`
+	Domains  []string `json:"domains"`
+	Keywords []string `json:"keywords,omitempty"`
+	Ports    []int    `json:"ports,omitempty"`
 }
 
 type ScanResponseAPI struct {
@@ -45,7 +43,7 @@ func main() {
 	fmt.Println("Example request:")
 	fmt.Println(`curl -X POST http://localhost:8080/scan \
   -H "Content-Type: application/json" \
-  -d '{"domains": ["example.com"], "profile": "quick"}'`)
+  -d '{"domains": ["example.com"], "keywords": ["staging"]}'`)
 
 	// Example server - in production, use server with timeouts
 	log.Fatal(http.ListenAndServe(":8080", nil)) // #nosec G114 - example code only
@@ -73,31 +71,15 @@ func handleScan(scanner *domainscan.Scanner) http.HandlerFunc {
 		scanReq := &domainscan.ScanRequest{
 			Domains:        req.Domains,
 			Keywords:       req.Keywords,
-			Ports:          req.Ports,
-			MaxSubdomains:  req.MaxSubdomains,
 			Timeout:        10 * time.Second,
 			EnablePassive:  true,
 			EnableCertScan: true,
 			EnableHTTPScan: true,
 		}
 
-		// Apply defaults
-		if len(scanReq.Ports) == 0 {
-			scanReq.Ports = []int{80, 443, 8080, 8443}
-		}
-		if scanReq.MaxSubdomains == 0 {
-			scanReq.MaxSubdomains = 1000
-		}
-
-		// Apply profile
-		if req.Profile == "quick" {
-			scanReq.MaxSubdomains = 100
-			scanReq.Ports = []int{80, 443}
-			scanReq.Timeout = 5 * time.Second
-		} else if req.Profile == "comprehensive" {
-			scanReq.MaxSubdomains = 5000
-			scanReq.Ports = []int{80, 443, 8080, 8443, 3000, 8000, 8888, 9000}
-			scanReq.Timeout = 15 * time.Second
+		// Set default timeout if not specified
+		if scanReq.Timeout == 0 {
+			scanReq.Timeout = 10 * time.Second
 		}
 
 		// Set request timeout
@@ -152,9 +134,7 @@ Perform domain asset discovery.
 {
   "domains": ["example.com"],
   "keywords": ["staging", "prod"],  // optional, combined with auto-extracted
-  "ports": [80, 443, 8080],      // optional
-  "max_subdomains": 1000,        // optional
-  "profile": "quick"             // optional: quick, comprehensive
+  "ports": [80, 443, 8080]       // optional
 }
 
 **Response:**
@@ -172,15 +152,15 @@ Health check endpoint.
 
 ## Usage Examples
 
-### Quick scan
+### Basic scan
 curl -X POST http://localhost:8080/scan \
   -H "Content-Type: application/json" \
-  -d '{"domains": ["example.com"], "profile": "quick"}'
+  -d '{"domains": ["example.com"]}'
 
-### Comprehensive scan
+### Scan with keywords
 curl -X POST http://localhost:8080/scan \
   -H "Content-Type: application/json" \
-  -d '{"domains": ["example.com"], "profile": "comprehensive"}'
+  -d '{"domains": ["example.com"], "keywords": ["staging", "prod"]}'
 
 ### Custom scan
 curl -X POST http://localhost:8080/scan \
@@ -188,8 +168,7 @@ curl -X POST http://localhost:8080/scan \
   -d '{
     "domains": ["example.com"],
     "keywords": ["staging", "prod"],
-    "ports": [80, 443, 8080, 3000],
-    "max_subdomains": 500
+    "ports": [80, 443, 8080, 3000]
   }'
 `
 
