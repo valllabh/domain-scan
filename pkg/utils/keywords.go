@@ -122,20 +122,28 @@ func MatchesKeywords(domain string, keywords []string) bool {
 	return false
 }
 
-// removeTLDs efficiently removes TLD components from a domain
+// removeTLDs removes the longest matching TLD suffix from a domain
+// Only removes the TLD suffix once, not iteratively
 func removeTLDs(domain string, tlds map[string]bool) string {
-	for {
-		lastDot := strings.LastIndex(domain, ".")
-		if lastDot == -1 {
-			break
-		}
+	longestTLD := ""
 
-		suffix := domain[lastDot+1:]
-		if tlds[suffix] {
-			domain = domain[:lastDot]
-		} else {
-			break
+	// Find the longest TLD suffix that matches
+	for suffix := range tlds {
+		if strings.HasSuffix(domain, "."+suffix) || domain == suffix {
+			if len(suffix) > len(longestTLD) {
+				longestTLD = suffix
+			}
 		}
 	}
+
+	if longestTLD != "" {
+		if domain == longestTLD {
+			// Entire domain is a TLD
+			return ""
+		}
+		// Remove the TLD and its preceding dot
+		return domain[:len(domain)-len(longestTLD)-1]
+	}
+
 	return domain
 }

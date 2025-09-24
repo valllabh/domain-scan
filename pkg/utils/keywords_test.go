@@ -234,6 +234,53 @@ func TestExtractKeywordsFromDomains(t *testing.T) {
 			domains:  []string{"apple.com", "microsoft.co.uk", "google.ca", "amazon.com.au"},
 			expected: []string{"apple", "microsoft", "google", "amazon"},
 		},
+
+		// Test cases from user requirements
+		{
+			name:     "requirement test 1 - basic domains",
+			domains:  []string{"google.com", "facebook.com"},
+			expected: []string{"google", "facebook"},
+		},
+		{
+			name:     "requirement test 2 - mixed case",
+			domains:  []string{"Google.COM", "FACEBOOK.net"},
+			expected: []string{"google", "facebook"},
+		},
+		{
+			name:     "requirement test 3 - subdomains deduplicated",
+			domains:  []string{"api.stripe.com", "dashboard.stripe.com", "stripe.com"},
+			expected: []string{"stripe"},
+		},
+		{
+			name:     "requirement test 4 - multi-part TLDs",
+			domains:  []string{"bbc.co.uk", "example.com.au"},
+			expected: []string{"bbc", "example"},
+		},
+		{
+			name:     "requirement test 5 - complex organizational domains",
+			domains:  []string{"Statetstreet.com", "Crd.com", "Ssga.com", "Globallink.com"},
+			expected: []string{"statetstreet", "crd", "ssga", "globallink"},
+		},
+		{
+			name:     "requirement example - API subdomain",
+			domains:  []string{"API.Example.com"},
+			expected: []string{"example"},
+		},
+		{
+			name:     "requirement example - hyphenated domain",
+			domains:  []string{"my-company.org"},
+			expected: []string{"my", "company"},
+		},
+		{
+			name:     "requirement example - subdomain with multi-part TLD",
+			domains:  []string{"subdomain.company.co.uk"},
+			expected: []string{"company"},
+		},
+		{
+			name:     "requirement example - uppercase domain",
+			domains:  []string{"UPPERCASE.COM"},
+			expected: []string{"uppercase"},
+		},
 	}
 
 	for _, tt := range tests {
