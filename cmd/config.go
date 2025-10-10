@@ -191,9 +191,6 @@ func createDefaultConfig(filename string) error {
 discovery:
   timeout: 10
   threads: 50
-  passive_enabled: true
-  certificate_enabled: true
-  http_enabled: true
 
 ports:
   default: [80, 443, 8080, 8443, 3000, 8000, 8888]

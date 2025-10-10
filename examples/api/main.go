@@ -69,12 +69,9 @@ func handleScan(scanner *domainscan.Scanner) http.HandlerFunc {
 
 		// Create scan request
 		scanReq := &domainscan.ScanRequest{
-			Domains:        req.Domains,
-			Keywords:       req.Keywords,
-			Timeout:        10 * time.Second,
-			EnablePassive:  true,
-			EnableCertScan: true,
-			EnableHTTPScan: true,
+			Domains:  req.Domains,
+			Keywords: req.Keywords,
+			Timeout:  10 * time.Second,
 		}
 
 		// Set default timeout if not specified

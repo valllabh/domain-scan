@@ -141,18 +141,6 @@ func TestDefaultScanRequest(t *testing.T) {
 	if req.Timeout != 10*time.Second {
 		t.Errorf("Expected Timeout to be 10s, got %v", req.Timeout)
 	}
-
-	if !req.EnablePassive {
-		t.Error("Expected EnablePassive to be true")
-	}
-
-	if !req.EnableCertScan {
-		t.Error("Expected EnableCertScan to be true")
-	}
-
-	if !req.EnableHTTPScan {
-		t.Error("Expected EnableHTTPScan to be true")
-	}
 }
 
 // testLogger is a mock logger for testing

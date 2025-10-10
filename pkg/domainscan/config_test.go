@@ -21,18 +21,6 @@ func TestDefaultConfig(t *testing.T) {
 		t.Errorf("Expected Threads to be 50, got %d", config.Discovery.Threads)
 	}
 
-	if !config.Discovery.PassiveEnabled {
-		t.Error("Expected PassiveEnabled to be true")
-	}
-
-	if !config.Discovery.CertificateEnabled {
-		t.Error("Expected CertificateEnabled to be true")
-	}
-
-	if !config.Discovery.HTTPEnabled {
-		t.Error("Expected HTTPEnabled to be true")
-	}
-
 	// Port configuration removed - httpx auto-detects ports
 
 	// Test keywords defaults (should be empty by default)

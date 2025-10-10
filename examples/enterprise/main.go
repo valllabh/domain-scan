@@ -14,11 +14,8 @@ func main() {
 	// Create enterprise configuration
 	config := &domainscan.Config{
 		Discovery: domainscan.DiscoveryConfig{
-			Timeout:            30 * time.Second,
-			Threads:            100,
-			PassiveEnabled:     true,
-			CertificateEnabled: true,
-			HTTPEnabled:        true,
+			Timeout: 30 * time.Second,
+			Threads: 100,
 		},
 		Keywords: []string{},
 	}
@@ -35,12 +32,9 @@ func main() {
 
 	// Create comprehensive scan request
 	req := &domainscan.ScanRequest{
-		Domains:        domains,
-		Keywords:       config.Keywords,
-		Timeout:        config.Discovery.Timeout,
-		EnablePassive:  true,
-		EnableCertScan: true,
-		EnableHTTPScan: true,
+		Domains:  domains,
+		Keywords: config.Keywords,
+		Timeout:  config.Discovery.Timeout,
 	}
 
 	fmt.Println("🏢 Starting Enterprise Asset Discovery")

@@ -115,14 +115,9 @@ func runDiscover(cmd *cobra.Command, args []string) error {
 
 	// Create scan request
 	req := &domainscan.ScanRequest{
-		Domains:             args,
-		Keywords:            keywords,
-		MaxDiscoveryRounds:  config.Discovery.MaxDiscoveryRounds,
-		Timeout:             getTimeout(config),
-		EnablePassive:       true, // Always enabled
-		EnableCertScan:      true, // Always enabled
-		EnableHTTPScan:      true, // Always enabled
-		EnableSisterDomains: config.Discovery.SisterDomainEnabled,
+		Domains:  args,
+		Keywords: keywords,
+		Timeout:  getTimeout(config),
 	}
 
 	// Combine all keyword sources efficiently

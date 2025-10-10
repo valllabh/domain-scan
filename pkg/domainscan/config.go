@@ -14,13 +14,8 @@ type Config struct {
 
 // DiscoveryConfig contains settings for asset discovery
 type DiscoveryConfig struct {
-	MaxDiscoveryRounds  int           `yaml:"max_discovery_rounds" json:"max_discovery_rounds"`
-	Timeout             time.Duration `yaml:"timeout" json:"timeout"`
-	Threads             int           `yaml:"threads" json:"threads"`
-	PassiveEnabled      bool          `yaml:"passive_enabled" json:"passive_enabled"`
-	CertificateEnabled  bool          `yaml:"certificate_enabled" json:"certificate_enabled"`
-	HTTPEnabled         bool          `yaml:"http_enabled" json:"http_enabled"`
-	SisterDomainEnabled bool          `yaml:"sister_domain_enabled" json:"sister_domain_enabled"`
+	Timeout time.Duration `yaml:"timeout" json:"timeout"`
+	Threads int           `yaml:"threads" json:"threads"`
 }
 
 
@@ -28,13 +23,8 @@ type DiscoveryConfig struct {
 func DefaultConfig() *Config {
 	return &Config{
 		Discovery: DiscoveryConfig{
-			MaxDiscoveryRounds:  3,
-			Timeout:             10 * time.Second,
-			Threads:             50,
-			PassiveEnabled:      true,
-			CertificateEnabled:  true,
-			HTTPEnabled:         true,
-			SisterDomainEnabled: true,
+			Timeout: 10 * time.Second,
+			Threads: 50,
 		},
 		Keywords: []string{},
 		LogLevel: "info",

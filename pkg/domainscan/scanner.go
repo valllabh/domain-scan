@@ -78,12 +78,7 @@ func (s *Scanner) SetProgressCallback(callback ProgressCallback) {
 func (s *Scanner) DiscoverAssets(ctx context.Context, domains []string) (*AssetDiscoveryResult, error) {
 	req := DefaultScanRequest(domains)
 	req.Keywords = s.config.Keywords
-	req.MaxDiscoveryRounds = s.config.Discovery.MaxDiscoveryRounds
 	req.Timeout = s.config.Discovery.Timeout
-	req.EnablePassive = s.config.Discovery.PassiveEnabled
-	req.EnableCertScan = s.config.Discovery.CertificateEnabled
-	req.EnableHTTPScan = s.config.Discovery.HTTPEnabled
-	req.EnableSisterDomains = s.config.Discovery.SisterDomainEnabled
 
 	return s.ScanWithOptions(ctx, req)
 }

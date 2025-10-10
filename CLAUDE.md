@@ -198,14 +198,9 @@ config := domainscan.DefaultConfig()
 scanner := domainscan.New(config)
 
 req := &domainscan.ScanRequest{
-    Domains:             []string{"example.com"},
-    Keywords:            []string{}, // Keywords are extracted from domains automatically
-    Ports:               []int{80, 443, 8080},
-    MaxDiscoveryRounds:  3,
-    EnablePassive:       true,
-    EnableCertScan:      true,
-    EnableHTTPScan:      true,
-    EnableSisterDomains: false,
+    Domains:  []string{"example.com"},
+    Keywords: []string{}, // Keywords are extracted from domains automatically
+    Timeout:  10 * time.Second,
 }
 
 result, err := scanner.ScanWithOptions(ctx, req)

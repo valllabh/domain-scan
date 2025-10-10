@@ -28,26 +28,16 @@ type DiscoveryStats struct {
 
 // ScanRequest represents a request for domain asset discovery
 type ScanRequest struct {
-	Domains             []string      `json:"domains"`
-	Keywords            []string      `json:"keywords,omitempty"`
-	MaxDiscoveryRounds  int           `json:"max_discovery_rounds,omitempty"`
-	Timeout             time.Duration `json:"timeout,omitempty"`
-	EnablePassive       bool          `json:"enable_passive"`
-	EnableCertScan      bool          `json:"enable_cert_scan"`
-	EnableHTTPScan      bool          `json:"enable_http_scan"`
-	EnableSisterDomains bool          `json:"enable_sister_domains"`
+	Domains  []string      `json:"domains"`
+	Keywords []string      `json:"keywords,omitempty"`
+	Timeout  time.Duration `json:"timeout,omitempty"`
 }
 
 // DefaultScanRequest returns a default scan request
 func DefaultScanRequest(domains []string) *ScanRequest {
 	return &ScanRequest{
-		Domains:             domains,
-		Keywords:            []string{},
-		MaxDiscoveryRounds:  3,
-		Timeout:             10 * time.Second,
-		EnablePassive:       true,
-		EnableCertScan:      true,
-		EnableHTTPScan:      true,
-		EnableSisterDomains: true,
+		Domains:  domains,
+		Keywords: []string{},
+		Timeout:  10 * time.Second,
 	}
 }
