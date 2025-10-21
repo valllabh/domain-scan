@@ -17,10 +17,9 @@ import (
 )
 
 // DomainResult represents the structured output format for domains.json
-// containing both discovered and live domains for consumption by other tools
+// containing full domain information including sources and IPs
 type DomainResult struct {
-	AllDomains  []string `json:"all-domains"`
-	LiveDomains []string `json:"live-domains"`
+	Domains map[string]*domainscan.DomainEntry `json:"domains"` // Full domain entries with sources and IPs
 }
 
 var (
@@ -246,7 +245,7 @@ func outputResults(result *domainscan.AssetDiscoveryResult) error {
 }
 
 // createDomainsJSON creates a structured domains.json file in the result directory.
-// Separates all discovered domains from live domains for downstream tool consumption.
+// Includes full domain information with sources and IPs
 func createDomainsJSON(result *domainscan.AssetDiscoveryResult, firstDomain string) error {
 	// Create result directory structure
 	domainDir := filepath.Join(resultDir, firstDomain)
@@ -254,26 +253,9 @@ func createDomainsJSON(result *domainscan.AssetDiscoveryResult, firstDomain stri
 		return fmt.Errorf("failed to create result directory: %w", err)
 	}
 
-	// Prepare all domains and live domains from result.Domains
-	var allDomains []string
-	var liveDomains []string
-
-	for domainURL, entry := range result.Domains {
-		// Extract domain name from URL for all domains
-		if domain := extractDomainFromURL(domainURL); domain != "" {
-			allDomains = append(allDomains, domain)
-		}
-
-		// Add live domains with full URL
-		if entry.IsLive {
-			liveDomains = append(liveDomains, domainURL)
-		}
-	}
-
-	// Create domain result structure
+	// Create domain result structure with full entries
 	domainResult := DomainResult{
-		AllDomains:  allDomains,
-		LiveDomains: liveDomains,
+		Domains: result.Domains,
 	}
 
 	// Marshal to JSON

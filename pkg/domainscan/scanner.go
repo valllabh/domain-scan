@@ -7,6 +7,7 @@ import (
 
 	"github.com/valllabh/domain-scan/pkg/discovery"
 	"github.com/valllabh/domain-scan/pkg/logging"
+	"github.com/valllabh/domain-scan/pkg/types"
 	"github.com/valllabh/domain-scan/pkg/utils"
 	"go.uber.org/zap"
 )
@@ -183,6 +184,19 @@ func (s *Scanner) passiveScanWithTracking(ctx context.Context, domains []string,
 	s.logInfo("Bulk passive discovery found %d subdomains", len(subdomains))
 	s.logDebug("Found subdomains: %v", subdomains)
 
+	// Track passive discovery source for all discovered subdomains
+	for _, subdomain := range subdomains {
+		entry, exists := outputDomains[subdomain]
+		if !exists {
+			entry = &DomainEntry{
+				Domain:  subdomain,
+				Sources: []types.Source{},
+			}
+			outputDomains[subdomain] = entry
+		}
+		addSource(entry, "subfinder", "passive")
+	}
+
 	// Prepare certificate scan batch with original domains + discovered subdomains
 	certScanBatch := make([]string, 0, len(unprocessedDomains)+len(subdomains))
 	certScanBatch = append(certScanBatch, unprocessedDomains...)
@@ -219,7 +233,18 @@ func (s *Scanner) certificateScanWithTracking(ctx context.Context, domains []str
 
 	liveDomainCount := s.countLiveDomainsFromMap(outputDomains)
 	for _, domainEntry := range domainEntries {
-		outputDomains[domainEntry.Domain] = domainEntry
+		// Merge with existing entry if present
+		if existing, exists := outputDomains[domainEntry.Domain]; exists {
+			existing.Status = domainEntry.Status
+			existing.IsLive = domainEntry.IsLive
+			// Merge sources
+			for _, src := range domainEntry.Sources {
+				addSource(existing, src.Name, src.Type)
+			}
+		} else {
+			outputDomains[domainEntry.Domain] = domainEntry
+		}
+
 		s.logInfo("Added domain %s (live: %t, status: %d)", domainEntry.Domain, domainEntry.IsLive, domainEntry.Status)
 
 		if domainEntry.IsLive {
@@ -300,4 +325,19 @@ func (s *Scanner) filterUnprocessedDomains(domains []string, processedDomains ma
 		validDomains = append(validDomains, domain)
 	}
 	return validDomains
+}
+
+// addSource adds a source to a domain entry, avoiding duplicates
+func addSource(entry *DomainEntry, name string, sourceType string) {
+	// Check if source already exists
+	for _, src := range entry.Sources {
+		if src.Name == name && src.Type == sourceType {
+			return
+		}
+	}
+	// Add new source
+	entry.Sources = append(entry.Sources, types.Source{
+		Name: name,
+		Type: sourceType,
+	})
 }

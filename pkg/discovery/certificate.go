@@ -12,6 +12,21 @@ import (
 	"go.uber.org/zap"
 )
 
+// addSource adds a source to a domain entry, avoiding duplicates
+func addSource(entry *types.DomainEntry, name string, sourceType string) {
+	// Check if source already exists
+	for _, src := range entry.Sources {
+		if src.Name == name && src.Type == sourceType {
+			return
+		}
+	}
+	// Add new source
+	entry.Sources = append(entry.Sources, types.Source{
+		Name: name,
+		Type: sourceType,
+	})
+}
+
 // BulkCertificateAnalysisForScanner analyzes TLS certificates for multiple targets using bulk httpx call
 func BulkCertificateAnalysisForScanner(ctx context.Context, targets []string, keywords []string, logger *zap.SugaredLogger) ([]*types.DomainEntry, []string, error) {
 	var domainEntries []*types.DomainEntry
@@ -54,10 +69,10 @@ func BulkCertificateAnalysisForScanner(ctx context.Context, targets []string, ke
 			domainEntry, exists := domainEntriesMap[target]
 			if !exists {
 				domainEntry = &types.DomainEntry{
-					Domain:         target,
-					Status:         0,
-					IsLive:         false,
-					HadPassiveScan: false,
+					Domain:  target,
+					Status:  0,
+					IsLive:  false,
+					Sources: []types.Source{},
 				}
 				domainEntriesMap[target] = domainEntry
 			}
@@ -67,8 +82,16 @@ func BulkCertificateAnalysisForScanner(ctx context.Context, targets []string, ke
 				domainEntry.IsLive = true
 				domainEntry.Status = result.StatusCode
 
+				// Capture IP address if available
+				if len(result.A) > 0 {
+					domainEntry.IP = result.A[0] // Use first IPv4 address
+				}
+
+				// Add httpx as source for live domain
+				addSource(domainEntry, "httpx", "http")
+
 				if logger != nil {
-					logger.Debugf("Updated domain entry: %s (status: %d, live: %t)", target, result.StatusCode, true)
+					logger.Debugf("Updated domain entry: %s (status: %d, live: %t, ip: %s)", target, result.StatusCode, true, domainEntry.IP)
 				}
 			}
 
@@ -77,6 +100,9 @@ func BulkCertificateAnalysisForScanner(ctx context.Context, targets []string, ke
 				if logger != nil {
 					logger.Debugf("Processing TLS data for %s", result.URL)
 				}
+
+				// Add certificate as source
+				addSource(domainEntry, "certificate", "certificate")
 
 				// Filter SubjectANs based on keywords and collect subdomains
 				for _, san := range result.TLSData.SubjectAN {
