@@ -1,13 +1,48 @@
 # Domain-scan default configuration
+
+# Discovery settings control how domains are discovered and enumerated
 discovery:
+  # HTTP timeout in seconds for each request
   timeout: 10
+
+  # Number of concurrent threads for HTTP scanning
   threads: 50
 
+  # Enable passive subdomain enumeration using subfinder (default: true)
+  # Set to false to skip passive discovery and only use certificate analysis
+  enable_passive: true
+
+  # Enable TLS certificate analysis for domain discovery (default: true)
+  # Set to false to skip certificate analysis and only use passive enumeration
+  enable_certificate: true
+
+  # Enable recursive discovery of new domains found in certificates (default: true)
+  # When enabled, newly discovered domains are scanned for additional subdomains
+  recursive: true
+
+  # Maximum recursion depth for certificate discovery (default: 0 = unlimited)
+  # Example: depth=1 means scan initial domains + first level of discovered domains
+  recursion_depth: 0
+
+  # Maximum number of domains to discover (default: 0 = unlimited)
+  # Stops discovery when this limit is reached to control scan scope
+  max_domains: 0
+
+  # Specific subfinder sources to use (default: [] = all sources)
+  # See 'domain-scan sources list' for available sources
+  # Example: [crtsh, censys, shodan] to use only these sources
+  sources: []
+
+# Port configuration for HTTP service verification
 ports:
   default: [80, 443, 8080, 8443, 3000, 8000, 8888]
   web: [80, 443, 8080, 8443]
   dev: [3000, 8000, 8888, 9000]
   enterprise: [80, 443, 8080, 8443, 8000, 9000, 8443]
-  
+
+# Keywords for filtering SSL certificate domains (default: auto-extracted from domains)
+# Used to exclude domains from other organizations in shared certificates
 keywords: []
 
+# Log level: trace, debug, info, warn, error, silent (default: info)
+log_level: info

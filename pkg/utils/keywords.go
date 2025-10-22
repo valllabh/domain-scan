@@ -147,3 +147,27 @@ func removeTLDs(domain string, tlds map[string]bool) string {
 
 	return domain
 }
+
+// ExtractBareDomain extracts the bare domain from a URL or domain string
+// Examples: "https://example.com" -> "example.com", "http://sub.example.com:8080" -> "sub.example.com"
+func ExtractBareDomain(urlOrDomain string) string {
+	// Remove protocol if present
+	domain := urlOrDomain
+	if strings.HasPrefix(domain, "http://") {
+		domain = strings.TrimPrefix(domain, "http://")
+	} else if strings.HasPrefix(domain, "https://") {
+		domain = strings.TrimPrefix(domain, "https://")
+	}
+
+	// Remove port if present
+	if idx := strings.Index(domain, ":"); idx != -1 {
+		domain = domain[:idx]
+	}
+
+	// Remove path if present
+	if idx := strings.Index(domain, "/"); idx != -1 {
+		domain = domain[:idx]
+	}
+
+	return domain
+}

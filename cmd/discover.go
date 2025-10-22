@@ -23,16 +23,22 @@ type DomainResult struct {
 }
 
 var (
-	keywords      []string
-	maxSubdomains int
-	timeout       int
-	threads       int
-	outputFile    string
-	outputFormat  string
-	resultDir     string
-	quiet         bool
-	debug         bool
-	logLevel      string
+	keywords         []string
+	maxSubdomains    int
+	timeout          int
+	threads          int
+	outputFile       string
+	outputFormat     string
+	resultDir        string
+	quiet            bool
+	debug            bool
+	logLevel         string
+	disablePassive   bool
+	disableCert      bool
+	noRecursive      bool
+	recursionDepth   int
+	maxDomains       int
+	sources          []string
 )
 
 // discoverCmd represents the discover command
@@ -77,6 +83,14 @@ func init() {
 	discoverCmd.Flags().IntVar(&timeout, "timeout", 0, "Timeout in seconds")
 	discoverCmd.Flags().IntVar(&threads, "threads", 0, "Number of threads")
 
+	// Discovery control flags
+	discoverCmd.Flags().BoolVar(&disablePassive, "disable-passive", false, "Disable passive subdomain enumeration using subfinder (still performs HTTP verification)")
+	discoverCmd.Flags().BoolVar(&disableCert, "disable-certificate", false, "Disable domain extraction from TLS certificates (still loads certificate info and performs HTTP verification)")
+	discoverCmd.Flags().BoolVar(&noRecursive, "no-recursive", false, "Disable recursive discovery of new domains found in certificates")
+	discoverCmd.Flags().IntVar(&recursionDepth, "recursion-depth", 0, "Maximum recursion depth for certificate discovery (0 = unlimited, use with --no-recursive=false)")
+	discoverCmd.Flags().IntVar(&maxDomains, "max-domains", 0, "Maximum number of domains to discover (0 = unlimited, stops discovery when limit reached)")
+	discoverCmd.Flags().StringSliceVar(&sources, "sources", []string{}, "Specific subfinder sources to use (empty = all sources, see 'sources list' command)")
+
 	// Output flags
 	discoverCmd.Flags().StringVarP(&outputFile, "output", "o", "", "Output file (default: stdout)")
 	discoverCmd.Flags().StringVarP(&outputFormat, "format", "f", "text", "Output format (text, json)")
@@ -85,11 +99,16 @@ func init() {
 	discoverCmd.Flags().BoolVar(&debug, "debug", false, "Enable debug logging for troubleshooting (deprecated, use --loglevel debug)")
 	discoverCmd.Flags().StringVar(&logLevel, "loglevel", "", "Log level (trace, debug, info, warn, error, silent)")
 
-	// All discovery methods are enabled by default
-
+	// Bind flags to viper
 	_ = viper.BindPFlag("discovery.max_subdomains", discoverCmd.Flags().Lookup("max-subdomains"))
 	_ = viper.BindPFlag("discovery.timeout", discoverCmd.Flags().Lookup("timeout"))
 	_ = viper.BindPFlag("discovery.threads", discoverCmd.Flags().Lookup("threads"))
+	_ = viper.BindPFlag("discovery.enable_passive", discoverCmd.Flags().Lookup("disable-passive"))
+	_ = viper.BindPFlag("discovery.enable_certificate", discoverCmd.Flags().Lookup("disable-certificate"))
+	_ = viper.BindPFlag("discovery.recursive", discoverCmd.Flags().Lookup("no-recursive"))
+	_ = viper.BindPFlag("discovery.recursion_depth", discoverCmd.Flags().Lookup("recursion-depth"))
+	_ = viper.BindPFlag("discovery.max_domains", discoverCmd.Flags().Lookup("max-domains"))
+	_ = viper.BindPFlag("discovery.sources", discoverCmd.Flags().Lookup("sources"))
 	_ = viper.BindPFlag("keywords", discoverCmd.Flags().Lookup("keywords"))
 	_ = viper.BindPFlag("log_level", discoverCmd.Flags().Lookup("loglevel"))
 }
@@ -193,6 +212,27 @@ func applyFlagOverrides(cmd *cobra.Command, config *domainscan.Config) {
 	if cmd.Flags().Changed("keywords") {
 		config.Keywords = keywords
 	}
+
+	// Discovery control flags
+	if cmd.Flags().Changed("disable-passive") {
+		config.Discovery.EnablePassive = !disablePassive
+	}
+	if cmd.Flags().Changed("disable-certificate") {
+		config.Discovery.EnableCertificate = !disableCert
+	}
+	if cmd.Flags().Changed("no-recursive") {
+		config.Discovery.Recursive = !noRecursive
+	}
+	if cmd.Flags().Changed("recursion-depth") {
+		config.Discovery.RecursionDepth = recursionDepth
+	}
+	if cmd.Flags().Changed("max-domains") {
+		config.Discovery.MaxDomains = maxDomains
+	}
+	if cmd.Flags().Changed("sources") {
+		config.Discovery.Sources = sources
+	}
+
 	// Handle legacy --debug flag and new --loglevel flag
 	if cmd.Flags().Changed("debug") && debug {
 		config.LogLevel = "debug"

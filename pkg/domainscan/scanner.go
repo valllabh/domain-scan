@@ -2,36 +2,20 @@ package domainscan
 
 import (
 	"context"
-	"log"
 	"strings"
 
+	"github.com/projectdiscovery/gologger"
 	"github.com/valllabh/domain-scan/pkg/discovery"
 	"github.com/valllabh/domain-scan/pkg/logging"
 	"github.com/valllabh/domain-scan/pkg/types"
 	"github.com/valllabh/domain-scan/pkg/utils"
-	"go.uber.org/zap"
 )
-
-// Logger interface for customizable logging
-type Logger interface {
-	Printf(format string, v ...interface{})
-	Println(v ...interface{})
-}
-
-// SugaredLogger interface for Zap sugared logging
-type SugaredLogger interface {
-	Debugf(template string, args ...interface{})
-	Infof(template string, args ...interface{})
-	Warnf(template string, args ...interface{})
-	Errorf(template string, args ...interface{})
-}
 
 // Scanner orchestrates domain asset discovery using passive enumeration,
 // certificate analysis, and HTTP verification to identify active subdomains
 type Scanner struct {
 	config   *Config
-	logger   Logger
-	sugar    *zap.SugaredLogger
+	logger   *gologger.Logger
 	progress ProgressCallback
 }
 
@@ -45,27 +29,14 @@ func New(config *Config) *Scanner {
 		return nil
 	}
 
-	// Initialize zap logger based on log level
-	zapLogger := logging.InitZapLogger(config.LogLevel)
-	sugar := zapLogger.Sugar()
+	// Initialize gologger based on log level
+	logging.InitLogger(config.LogLevel)
+	logger := logging.GetLogger()
 
 	return &Scanner{
 		config: config,
-		logger: log.Default(),
-		sugar:  sugar,
+		logger: logger,
 	}
-}
-
-// SetLogger sets a custom logger for the scanner.
-// Used for backward compatibility with standard log interface.
-func (s *Scanner) SetLogger(logger Logger) {
-	s.logger = logger
-}
-
-// SetSugaredLogger sets a Zap sugared logger for structured logging.
-// Provides better performance and structured output than standard logger.
-func (s *Scanner) SetSugaredLogger(sugar *zap.SugaredLogger) {
-	s.sugar = sugar
 }
 
 // SetProgressCallback sets a progress callback for real-time updates.
@@ -103,7 +74,7 @@ func (s *Scanner) ScanWithOptions(ctx context.Context, req *ScanRequest) (*Asset
 	}
 
 	s.logDebug("Starting passiveScan with domains: %v", domains)
-	s.passiveScanWithTracking(ctx, domains, keywords, outputDomains, processedDomains)
+	s.passiveScanWithTracking(ctx, domains, keywords, outputDomains, processedDomains, 0)
 	s.logDebug("Completed passiveScan")
 
 	result := &AssetDiscoveryResult{
@@ -124,37 +95,56 @@ func (s *Scanner) ScanWithOptions(ctx context.Context, req *ScanRequest) (*Asset
 	return result, nil
 }
 
-// logDebug logs debug message if sugar logger is available
+// logDebug logs debug message using gologger
 func (s *Scanner) logDebug(msg string, args ...interface{}) {
-	if s.sugar != nil {
-		s.sugar.Debugf(msg, args...)
+	if s.logger != nil {
+		s.logger.Debug().Msgf(msg, args...)
 	}
 }
 
-// logInfo logs info message if sugar logger is available
+// logInfo logs info message using gologger
 func (s *Scanner) logInfo(msg string, args ...interface{}) {
-	if s.sugar != nil {
-		s.sugar.Infof(msg, args...)
+	if s.logger != nil {
+		s.logger.Info().Msgf(msg, args...)
 	}
 }
 
-// logWarn logs warn message if sugar logger is available
+// logWarn logs warn message using gologger
 func (s *Scanner) logWarn(msg string, args ...interface{}) {
-	if s.sugar != nil {
-		s.sugar.Warnf(msg, args...)
+	if s.logger != nil {
+		s.logger.Warning().Msgf(msg, args...)
 	}
 }
 
-// logError logs error message if sugar logger is available
+// logError logs error message using gologger
 func (s *Scanner) logError(msg string, args ...interface{}) {
-	if s.sugar != nil {
-		s.sugar.Errorf(msg, args...)
+	if s.logger != nil {
+		s.logger.Error().Msgf(msg, args...)
 	}
 }
 
 // passiveScanWithTracking performs passive subdomain enumeration using subfinder.
 // Collects subdomains for each input domain and batches them for certificate analysis.
-func (s *Scanner) passiveScanWithTracking(ctx context.Context, domains []string, keywords []string, outputDomains map[string]*DomainEntry, processedDomains map[string]bool) {
+func (s *Scanner) passiveScanWithTracking(ctx context.Context, domains []string, keywords []string, outputDomains map[string]*DomainEntry, processedDomains map[string]bool, depth int) {
+	// Check if passive discovery is disabled
+	if !s.config.Discovery.EnablePassive {
+		s.logDebug("Passive discovery disabled, skipping")
+		// Always perform HTTP verification on original domains even if certificate discovery is disabled
+		// This ensures we at least check if the provided domains are live
+		s.httpVerificationOnly(ctx, domains, outputDomains, processedDomains)
+
+		// If certificate discovery is enabled, also scan certificates for additional domains
+		if s.config.Discovery.EnableCertificate {
+			s.certificateScanWithTracking(ctx, domains, keywords, outputDomains, processedDomains, depth)
+		}
+		return
+	}
+
+	// Check recursion depth limit
+	if s.config.Discovery.RecursionDepth > 0 && depth >= s.config.Discovery.RecursionDepth {
+		s.logDebug("Recursion depth limit reached (%d), skipping passive scan", depth)
+		return
+	}
 	// Filter unprocessed domains for bulk processing
 	var unprocessedDomains []string
 	for _, domain := range domains {
@@ -175,8 +165,14 @@ func (s *Scanner) passiveScanWithTracking(ctx context.Context, domains []string,
 	s.logInfo("Starting bulk passive scan for %d domains", len(unprocessedDomains))
 	s.logDebug("Domains to process: %v", unprocessedDomains)
 
-	// Run bulk passive discovery
-	subdomains, err := discovery.PassiveDiscoveryWithLogger(ctx, unprocessedDomains, s.sugar)
+	// Check if we've hit max domains limit before passive discovery
+	if s.config.Discovery.MaxDomains > 0 && len(outputDomains) >= s.config.Discovery.MaxDomains {
+		s.logInfo("Max domains limit reached (%d), skipping further discovery", s.config.Discovery.MaxDomains)
+		return
+	}
+
+	// Run bulk passive discovery with configured sources
+	subdomains, err := discovery.PassiveDiscoveryWithOptions(ctx, unprocessedDomains, s.config.Discovery.Sources, s.logger)
 	if err != nil {
 		s.logError("Bulk passive discovery failed: %v", err)
 		return
@@ -205,13 +201,24 @@ func (s *Scanner) passiveScanWithTracking(ctx context.Context, domains []string,
 
 	s.logInfo("Processing certificate scans for %d domains", len(certScanBatch))
 	s.logDebug("certScanBatch domains: %v", certScanBatch)
-	s.certificateScanWithTracking(ctx, certScanBatch, keywords, outputDomains, processedDomains)
+	s.certificateScanWithTracking(ctx, certScanBatch, keywords, outputDomains, processedDomains, depth)
 	s.logInfo("Completed all certificate scans")
 }
 
 // certificateScanWithTracking performs certificate analysis on bulk domains.
 // Filters already processed domains and performs HTTP verification with certificate analysis.
-func (s *Scanner) certificateScanWithTracking(ctx context.Context, domains []string, keywords []string, outputDomains map[string]*DomainEntry, processedDomains map[string]bool) {
+func (s *Scanner) certificateScanWithTracking(ctx context.Context, domains []string, keywords []string, outputDomains map[string]*DomainEntry, processedDomains map[string]bool, depth int) {
+	// Check if certificate discovery is disabled
+	if !s.config.Discovery.EnableCertificate {
+		s.logDebug("Certificate discovery disabled, skipping")
+		return
+	}
+
+	// Check if we've hit max domains limit
+	if s.config.Discovery.MaxDomains > 0 && len(outputDomains) >= s.config.Discovery.MaxDomains {
+		s.logInfo("Max domains limit reached (%d), skipping certificate scan", s.config.Discovery.MaxDomains)
+		return
+	}
 	if len(domains) == 0 {
 		return
 	}
@@ -221,51 +228,36 @@ func (s *Scanner) certificateScanWithTracking(ctx context.Context, domains []str
 		return
 	}
 
-	s.logInfo("Running bulk certificate analysis for %d targets", len(validDomains))
-	s.logDebug("Bulk targets: %v", validDomains)
-
-	domainEntries, newDomains, err := discovery.BulkCertificateAnalysisForScanner(ctx, validDomains, keywords, s.sugar)
-	if err != nil {
-		s.logWarn("Bulk certificate analysis error: %v", err)
-		return
-	}
-
-	s.logInfo("Bulk certificate analysis results - domainEntries: %d, newDomains: %d", len(domainEntries), len(newDomains))
-
-	liveDomainCount := s.countLiveDomainsFromMap(outputDomains)
-	for _, domainEntry := range domainEntries {
-		// Merge with existing entry if present
-		if existing, exists := outputDomains[domainEntry.Domain]; exists {
-			existing.Status = domainEntry.Status
-			existing.IsLive = domainEntry.IsLive
-			// Merge sources
-			for _, src := range domainEntry.Sources {
-				addSource(existing, src.Name, src.Type)
-			}
-		} else {
-			outputDomains[domainEntry.Domain] = domainEntry
-		}
-
-		s.logInfo("Added domain %s (live: %t, status: %d)", domainEntry.Domain, domainEntry.IsLive, domainEntry.Status)
-
-		if domainEntry.IsLive {
-			liveDomainCount++
-		}
-
-		if s.progress != nil {
-			s.progress.OnProgress(len(outputDomains), liveDomainCount)
-		}
-	}
+	newDomains := s.bulkAnalyzeAndMerge(ctx, validDomains, keywords, s.config.Discovery.EnableCertificate, "cert", "certificate analysis", outputDomains, processedDomains)
 
 	s.logInfo("Found %d new domains from certificate", len(newDomains))
 	s.logDebug("New domains: %v", newDomains)
+
+	// Only recurse if recursive discovery is enabled
+	if !s.config.Discovery.Recursive {
+		s.logDebug("Recursive discovery disabled, skipping recursion")
+		return
+	}
+
+	// Check recursion depth limit
+	if s.config.Discovery.RecursionDepth > 0 && depth+1 >= s.config.Discovery.RecursionDepth {
+		s.logDebug("Recursion depth limit would be reached (%d), skipping recursion", depth+1)
+		return
+	}
+
 	for _, newDomain := range newDomains {
+		// Check max domains limit before each recursive call
+		if s.config.Discovery.MaxDomains > 0 && len(outputDomains) >= s.config.Discovery.MaxDomains {
+			s.logInfo("Max domains limit reached (%d), stopping recursion", s.config.Discovery.MaxDomains)
+			return
+		}
+
 		if s.isSubdomain(newDomain) {
-			s.logDebug("Recursively calling cert scan for subdomain: %s", newDomain)
-			s.certificateScanWithTracking(ctx, []string{newDomain}, keywords, outputDomains, processedDomains)
+			s.logDebug("Recursively calling cert scan for subdomain: %s (depth %d)", newDomain, depth+1)
+			s.certificateScanWithTracking(ctx, []string{newDomain}, keywords, outputDomains, processedDomains, depth+1)
 		} else {
-			s.logDebug("Recursively calling passive scan for main domain: %s", newDomain)
-			s.passiveScanWithTracking(ctx, []string{newDomain}, keywords, outputDomains, processedDomains)
+			s.logDebug("Recursively calling passive scan for main domain: %s (depth %d)", newDomain, depth+1)
+			s.passiveScanWithTracking(ctx, []string{newDomain}, keywords, outputDomains, processedDomains, depth+1)
 		}
 	}
 }
@@ -297,6 +289,7 @@ func (s *Scanner) GetConfig() *Config {
 
 // UpdateConfig validates and updates the scanner configuration.
 // Returns error if the new configuration is invalid.
+// Also reinitializes logger if log level changed.
 func (s *Scanner) UpdateConfig(config *Config) error {
 	if config == nil {
 		return NewError(ErrInvalidConfig, "config cannot be nil", nil)
@@ -307,6 +300,11 @@ func (s *Scanner) UpdateConfig(config *Config) error {
 	}
 
 	s.config = config
+
+	// Reinitialize logger if log level changed
+	logging.InitLogger(config.LogLevel)
+	s.logger = logging.GetLogger()
+
 	return nil
 }
 
@@ -326,6 +324,90 @@ func (s *Scanner) filterUnprocessedDomains(domains []string, processedDomains ma
 		validDomains = append(validDomains, domain)
 	}
 	return validDomains
+}
+
+// httpVerificationOnly performs HTTP verification on domains without certificate discovery.
+// Used when passive discovery is disabled to still verify if domains are live.
+func (s *Scanner) httpVerificationOnly(ctx context.Context, domains []string, outputDomains map[string]*DomainEntry, processedDomains map[string]bool) {
+	s.bulkAnalyzeAndMerge(ctx, domains, []string{}, false, "http", "HTTP verification", outputDomains, processedDomains)
+}
+
+// bulkAnalyzeAndMerge performs bulk certificate analysis and merges results into outputDomains.
+// Returns the list of newly discovered domains from certificate SANs.
+func (s *Scanner) bulkAnalyzeAndMerge(ctx context.Context, domains []string, keywords []string, extractNewDomains bool, processKeyPrefix string, operationName string, outputDomains map[string]*DomainEntry, processedDomains map[string]bool) []string {
+	// Filter unprocessed domains if not already filtered
+	var targetDomains []string
+	if processKeyPrefix != "cert" {
+		// For HTTP verification, filter here
+		for _, domain := range domains {
+			key := processKeyPrefix + ":" + domain
+			if processedDomains[key] {
+				s.logDebug("Skipping %s for %s (already processed)", operationName, domain)
+				continue
+			}
+			processedDomains[key] = true
+			targetDomains = append(targetDomains, domain)
+		}
+	} else {
+		// For certificate scan, already filtered by caller
+		targetDomains = domains
+	}
+
+	if len(targetDomains) == 0 {
+		s.logDebug("No unprocessed domains for %s", operationName)
+		return []string{}
+	}
+
+	s.logInfo("Running bulk %s for %d targets", operationName, len(targetDomains))
+	s.logDebug("Bulk targets: %v", targetDomains)
+
+	domainEntries, newDomains, err := discovery.BulkCertificateAnalysisForScanner(ctx, targetDomains, keywords, extractNewDomains, s.logger)
+	if err != nil {
+		s.logWarn("Bulk %s error: %v", operationName, err)
+		return []string{}
+	}
+
+	s.logInfo("Bulk %s results - domainEntries: %d, newDomains: %d", operationName, len(domainEntries), len(newDomains))
+
+	logPrefix := "Added"
+	if processKeyPrefix == "http" {
+		logPrefix = "Verified"
+	}
+	s.mergeDomainEntries(domainEntries, outputDomains, logPrefix)
+
+	return newDomains
+}
+
+// mergeDomainEntries merges domain entries into outputDomains and updates progress
+func (s *Scanner) mergeDomainEntries(domainEntries []*DomainEntry, outputDomains map[string]*DomainEntry, logPrefix string) {
+	liveDomainCount := s.countLiveDomainsFromMap(outputDomains)
+	for _, domainEntry := range domainEntries {
+		// Merge with existing entry if present
+		if existing, exists := outputDomains[domainEntry.Domain]; exists {
+			existing.Status = domainEntry.Status
+			existing.IsLive = domainEntry.IsLive
+			existing.URL = domainEntry.URL
+			existing.IP = domainEntry.IP
+			existing.Redirect = domainEntry.Redirect
+			existing.Certificate = domainEntry.Certificate
+			// Merge sources
+			for _, src := range domainEntry.Sources {
+				addSource(existing, src.Name, src.Type)
+			}
+		} else {
+			outputDomains[domainEntry.Domain] = domainEntry
+		}
+
+		s.logInfo("%s domain %s (live: %t, status: %d)", logPrefix, domainEntry.Domain, domainEntry.IsLive, domainEntry.Status)
+
+		if domainEntry.IsLive {
+			liveDomainCount++
+		}
+
+		if s.progress != nil {
+			s.progress.OnProgress(len(outputDomains), liveDomainCount)
+		}
+	}
 }
 
 // addSource adds a source to a domain entry, avoiding duplicates

@@ -1,39 +1,33 @@
 package logging
 
 import (
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
+	"github.com/projectdiscovery/gologger"
+	"github.com/projectdiscovery/gologger/levels"
 )
 
-// InitZapLogger initializes a zap logger with the specified log level
-func InitZapLogger(logLevel string) *zap.Logger {
-	var level zapcore.Level
+// InitLogger configures the global gologger based on log level string
+// Supports: trace, debug, info, warn, error, silent
+func InitLogger(logLevel string) {
+	var level levels.Level
 	switch logLevel {
 	case "trace", "debug":
-		level = zapcore.DebugLevel
+		level = levels.LevelDebug
 	case "info":
-		level = zapcore.InfoLevel
+		level = levels.LevelInfo
 	case "warn":
-		level = zapcore.WarnLevel
+		level = levels.LevelWarning
 	case "error":
-		level = zapcore.ErrorLevel
+		level = levels.LevelError
 	case "silent":
-		level = zapcore.FatalLevel // Essentially silent for our use case
+		level = levels.LevelSilent
 	default:
-		level = zapcore.InfoLevel
+		level = levels.LevelInfo
 	}
 
-	config := zap.NewDevelopmentConfig()
-	config.Level = zap.NewAtomicLevelAt(level)
-	config.Development = false
-	config.DisableCaller = true
-	config.DisableStacktrace = true
-	config.EncoderConfig.TimeKey = "timestamp"
-	config.EncoderConfig.LevelKey = "level"
-	config.EncoderConfig.MessageKey = "message"
-	config.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
-	config.EncoderConfig.EncodeLevel = zapcore.LowercaseLevelEncoder
+	gologger.DefaultLogger.SetMaxLevel(level)
+}
 
-	logger, _ := config.Build()
-	return logger
+// GetLogger returns the configured gologger instance
+func GetLogger() *gologger.Logger {
+	return gologger.DefaultLogger
 }

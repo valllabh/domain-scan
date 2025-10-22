@@ -7,8 +7,8 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/valllabh/domain-scan/pkg/discovery"
+	"github.com/valllabh/domain-scan/pkg/logging"
 	"github.com/valllabh/domain-scan/pkg/utils"
-	"go.uber.org/zap"
 )
 
 var testcertCmd = &cobra.Command{
@@ -31,24 +31,17 @@ func init() {
 }
 
 func runTestCert(cmd *cobra.Command, args []string) error {
-	// Create logger
-	config := zap.NewDevelopmentConfig()
-	logger, err := config.Build()
-	if err != nil {
-		return fmt.Errorf("failed to create logger: %v", err)
-	}
-	defer func() {
-		_ = logger.Sync()
-	}()
-	sugaredLogger := logger.Sugar()
+	// Initialize logger
+	logging.InitLogger("debug")
+	logger := logging.GetLogger()
 
 	// Extract keywords from domains if not provided
 	keywords := utils.LoadKeywords(args, testCertKeywords)
 
-	fmt.Printf("🧪 Testing certificate discovery\n")
-	fmt.Printf("📋 Domains: %v\n", args)
-	fmt.Printf("🔑 Keywords: %v\n", keywords)
-	fmt.Printf("🔌 Ports: %v\n\n", testCertPorts)
+	fmt.Printf("Testing certificate discovery\n")
+	fmt.Printf("Domains: %v\n", args)
+	fmt.Printf("Keywords: %v\n", keywords)
+	fmt.Printf("Ports: %v\n\n", testCertPorts)
 
 	// Prepare targets with ports
 	var targets []string
@@ -62,13 +55,14 @@ func runTestCert(cmd *cobra.Command, args []string) error {
 	defer cancel()
 
 	// Run certificate analysis
-	fmt.Printf("🔍 Scanning %d targets...\n\n", len(targets))
+	fmt.Printf("Scanning %d targets...\n\n", len(targets))
 
 	domainEntries, allSubdomains, err := discovery.BulkCertificateAnalysisForScanner(
 		ctx,
 		targets,
 		keywords,
-		sugaredLogger,
+		true, // Always extract new domains in test mode
+		logger,
 	)
 
 	if err != nil {

@@ -25,7 +25,8 @@ type RedirectInfo struct {
 
 // DomainEntry represents a single domain with its protocol, port, and status
 type DomainEntry struct {
-	Domain      string           `json:"domain"`                // protocol+domain+port (e.g., "https://example.com:443")
+	Domain      string           `json:"domain"`                // Bare domain (e.g., "example.com")
+	URL         string           `json:"url,omitempty"`         // Full URL if HTTP verified (e.g., "https://example.com")
 	Status      int              `json:"status"`                // HTTP status code
 	IsLive      bool             `json:"is_live"`               // Whether domain is live
 	IP          string           `json:"ip,omitempty"`          // IP address if resolved
