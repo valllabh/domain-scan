@@ -37,7 +37,9 @@ func runTestCert(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create logger: %v", err)
 	}
-	defer logger.Sync()
+	defer func() {
+		_ = logger.Sync()
+	}()
 	sugaredLogger := logger.Sugar()
 
 	// Extract keywords from domains if not provided

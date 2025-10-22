@@ -276,27 +276,6 @@ func createDomainsJSON(result *domainscan.AssetDiscoveryResult, firstDomain stri
 	return nil
 }
 
-// extractDomainFromURL extracts the domain name from a URL.
-// Removes protocol, port, and path components to return clean domain.
-func extractDomainFromURL(url string) string {
-	// Remove protocol
-	if strings.HasPrefix(url, "http://") {
-		url = url[7:]
-	} else if strings.HasPrefix(url, "https://") {
-		url = url[8:]
-	}
-
-	// Remove port and path
-	if idx := strings.Index(url, ":"); idx != -1 {
-		url = url[:idx]
-	}
-	if idx := strings.Index(url, "/"); idx != -1 {
-		url = url[:idx]
-	}
-
-	return url
-}
-
 // DebugLogger implements the Logger interface for conditional debug output.
 // Provides backward compatibility with legacy debug flag functionality.
 type DebugLogger struct {

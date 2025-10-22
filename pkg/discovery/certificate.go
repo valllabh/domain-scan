@@ -87,6 +87,15 @@ func BulkCertificateAnalysisForScanner(ctx context.Context, targets []string, ke
 					domainEntry.IP = result.A[0] // Use first IPv4 address
 				}
 
+				// Capture redirect information if domain redirects
+				if result.FinalURL != "" && result.FinalURL != result.URL {
+					domainEntry.Redirect = &types.RedirectInfo{
+						IsRedirect:  true,
+						RedirectsTo: result.FinalURL,
+						StatusCodes: result.ChainStatusCodes,
+					}
+				}
+
 				// Add httpx as source for live domain
 				addSource(domainEntry, "httpx", "http")
 
@@ -103,6 +112,14 @@ func BulkCertificateAnalysisForScanner(ctx context.Context, targets []string, ke
 
 				// Add certificate as source
 				addSource(domainEntry, "certificate", "certificate")
+
+				// Capture certificate metadata
+				domainEntry.Certificate = &types.CertificateInfo{
+					IssuedOn:  result.TLSData.NotBefore,
+					ExpiresOn: result.TLSData.NotAfter,
+					Issuer:    result.TLSData.IssuerCN,
+					Subject:   result.TLSData.SubjectCN,
+				}
 
 				// Filter SubjectANs based on keywords and collect subdomains
 				for _, san := range result.TLSData.SubjectAN {
