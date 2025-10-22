@@ -45,6 +45,17 @@ func BulkCertificateAnalysisForScanner(ctx context.Context, targets []string, ke
 		logger.Debugf("Bulk targets: %v", targets)
 	}
 
+	// Pre-populate all targets as non-live domains with passive source
+	// httpx will update these if they respond
+	for _, target := range targets {
+		domainEntriesMap[target] = &types.DomainEntry{
+			Domain:  target,
+			Status:  0,
+			IsLive:  false,
+			Sources: []types.Source{{Name: "traced", Type: "passive"}},
+		}
+	}
+
 	// Create httpx runner options for bulxk processing
 	opts := &runner.Options{
 		Methods:         "GET",
@@ -65,14 +76,15 @@ func BulkCertificateAnalysisForScanner(ctx context.Context, targets []string, ke
 			// Use result host as target key to maintain consistency with scanner expectations
 			target := result.URL
 
-			// Get or create domain entry for this target
+			// Get existing domain entry for this target (should always exist due to pre-population)
 			domainEntry, exists := domainEntriesMap[target]
 			if !exists {
+				// Fallback if target wasn't pre-populated
 				domainEntry = &types.DomainEntry{
 					Domain:  target,
 					Status:  0,
 					IsLive:  false,
-					Sources: []types.Source{},
+					Sources: []types.Source{{Name: "traced", Type: "passive"}},
 				}
 				domainEntriesMap[target] = domainEntry
 			}

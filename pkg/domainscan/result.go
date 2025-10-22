@@ -17,13 +17,14 @@ type AssetDiscoveryResult struct {
 
 // DiscoveryStats contains statistics about the discovery process
 type DiscoveryStats struct {
-	TotalSubdomains    int           `json:"total_subdomains"`
-	ActiveServices     int           `json:"active_services"`
-	PassiveResults     int           `json:"passive_results"`
-	CertificateResults int           `json:"certificate_results"`
-	HTTPResults        int           `json:"http_results"`
-	Duration           time.Duration `json:"duration"`
-	TargetsScanned     int           `json:"targets_scanned"`
+	TotalSubdomains    int           `json:"total_subdomains"`     // Total domains discovered
+	TracedDomains      int           `json:"traced_domains"`       // Domains found but not live
+	ActiveServices     int           `json:"active_services"`      // Live domains with HTTP services
+	PassiveResults     int           `json:"passive_results"`      // Domains from passive enumeration
+	CertificateResults int           `json:"certificate_results"`  // Domains from certificate analysis
+	HTTPResults        int           `json:"http_results"`         // Domains with HTTP responses
+	Duration           time.Duration `json:"duration"`             // Total scan duration
+	TargetsScanned     int           `json:"targets_scanned"`      // Number of targets scanned
 }
 
 // ScanRequest represents a request for domain asset discovery

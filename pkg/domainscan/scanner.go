@@ -115,6 +115,7 @@ func (s *Scanner) ScanWithOptions(ctx context.Context, req *ScanRequest) (*Asset
 	// Update statistics
 	result.Statistics.TotalSubdomains = len(outputDomains)
 	result.Statistics.ActiveServices = s.countLiveDomainsFromMap(outputDomains)
+	result.Statistics.TracedDomains = result.Statistics.TotalSubdomains - result.Statistics.ActiveServices
 
 	if s.progress != nil {
 		s.progress.OnEnd(result)

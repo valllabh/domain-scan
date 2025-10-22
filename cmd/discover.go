@@ -225,12 +225,19 @@ func outputResults(result *domainscan.AssetDiscoveryResult) error {
 		}
 	default: // text
 		var sb strings.Builder
+		// Write summary header
+		sb.WriteString(fmt.Sprintf("\nDiscovery Results:\n"))
+		sb.WriteString(fmt.Sprintf("  Total Domains: %d\n", result.Statistics.TotalSubdomains))
+		sb.WriteString(fmt.Sprintf("  Live Services: %d\n", result.Statistics.ActiveServices))
+		sb.WriteString(fmt.Sprintf("  Traced Only:   %d\n\n", result.Statistics.TracedDomains))
+
 		for _, entry := range result.Domains {
 			if entry.IsLive {
-				// Color live domains green
-				sb.WriteString(fmt.Sprintf("%s \033[32m[%d]\033[0m\n", entry.Domain, entry.Status))
+				// Color live domains green with status code
+				sb.WriteString(fmt.Sprintf("%s \033[32m[LIVE:%d]\033[0m\n", entry.Domain, entry.Status))
 			} else {
-				sb.WriteString(fmt.Sprintf("%s [%d]\n", entry.Domain, entry.Status))
+				// Show traced domains in gray
+				sb.WriteString(fmt.Sprintf("%s \033[90m[TRACED]\033[0m\n", entry.Domain))
 			}
 		}
 		output = []byte(sb.String())
