@@ -14,7 +14,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
-        go-version: ['1.23', '1.24.4']  # Current stable and latest security patch
+        go-version: ['1.23', '1.24.6']  # Current stable and latest security patch
     runs-on: ${{ matrix.os }}
     
     steps:
@@ -46,7 +46,7 @@ jobs:
       run: go test -v -race -coverprofile=coverage.out ./...
 
     - name: Upload coverage to Codecov
-      if: matrix.os == 'ubuntu-latest' && matrix.go-version == '1.24.4'
+      if: matrix.os == 'ubuntu-latest' && matrix.go-version == '1.24.6'
       uses: codecov/codecov-action@v4
       with:
         file: ./coverage.out
