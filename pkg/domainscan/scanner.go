@@ -228,10 +228,25 @@ func (s *Scanner) certificateScanWithTracking(ctx context.Context, domains []str
 		return
 	}
 
-	newDomains := s.bulkAnalyzeAndMerge(ctx, validDomains, keywords, s.config.Discovery.EnableCertificate, "cert", "certificate analysis", outputDomains, processedDomains)
+	newDomains, sanCertMap := s.bulkAnalyzeAndMerge(ctx, validDomains, keywords, s.config.Discovery.EnableCertificate, "cert", "certificate analysis", outputDomains, processedDomains)
 
 	s.logInfo("Found %d new domains from certificate", len(newDomains))
 	s.logDebug("New domains: %v", newDomains)
+
+	// Track certificate SAN as source for newly discovered domains
+	for _, domain := range newDomains {
+		entry, exists := outputDomains[domain]
+		if !exists {
+			entry = &DomainEntry{
+				Domain:  domain,
+				Sources: []types.Source{},
+			}
+			outputDomains[domain] = entry
+		}
+		// Add certificate source with parent certificate info
+		certInfo := sanCertMap[domain]
+		addSourceWithCert(entry, "certificate-san", "certificate", certInfo)
+	}
 
 	// Only recurse if recursive discovery is enabled
 	if !s.config.Discovery.Recursive {
@@ -274,7 +289,7 @@ func (s *Scanner) isSubdomain(domain string) bool {
 func (s *Scanner) countLiveDomainsFromMap(domains map[string]*DomainEntry) int {
 	count := 0
 	for _, entry := range domains {
-		if entry.IsLive {
+		if entry.Reachable {
 			count++
 		}
 	}
@@ -333,8 +348,8 @@ func (s *Scanner) httpVerificationOnly(ctx context.Context, domains []string, ou
 }
 
 // bulkAnalyzeAndMerge performs bulk certificate analysis and merges results into outputDomains.
-// Returns the list of newly discovered domains from certificate SANs.
-func (s *Scanner) bulkAnalyzeAndMerge(ctx context.Context, domains []string, keywords []string, extractNewDomains bool, processKeyPrefix string, operationName string, outputDomains map[string]*DomainEntry, processedDomains map[string]bool) []string {
+// Returns the list of newly discovered domains from certificate SANs and their parent certificate info.
+func (s *Scanner) bulkAnalyzeAndMerge(ctx context.Context, domains []string, keywords []string, extractNewDomains bool, processKeyPrefix string, operationName string, outputDomains map[string]*DomainEntry, processedDomains map[string]bool) ([]string, map[string]*types.CertificateInfo) {
 	// Filter unprocessed domains if not already filtered
 	var targetDomains []string
 	if processKeyPrefix != "cert" {
@@ -355,16 +370,16 @@ func (s *Scanner) bulkAnalyzeAndMerge(ctx context.Context, domains []string, key
 
 	if len(targetDomains) == 0 {
 		s.logDebug("No unprocessed domains for %s", operationName)
-		return []string{}
+		return []string{}, nil
 	}
 
 	s.logInfo("Running bulk %s for %d targets", operationName, len(targetDomains))
 	s.logDebug("Bulk targets: %v", targetDomains)
 
-	domainEntries, newDomains, err := discovery.BulkCertificateAnalysisForScanner(ctx, targetDomains, keywords, extractNewDomains, s.logger)
+	domainEntries, newDomains, sanCertMap, err := discovery.BulkCertificateAnalysisForScanner(ctx, targetDomains, keywords, extractNewDomains, s.logger)
 	if err != nil {
 		s.logWarn("Bulk %s error: %v", operationName, err)
-		return []string{}
+		return []string{}, nil
 	}
 
 	s.logInfo("Bulk %s results - domainEntries: %d, newDomains: %d", operationName, len(domainEntries), len(newDomains))
@@ -375,7 +390,7 @@ func (s *Scanner) bulkAnalyzeAndMerge(ctx context.Context, domains []string, key
 	}
 	s.mergeDomainEntries(domainEntries, outputDomains, logPrefix)
 
-	return newDomains
+	return newDomains, sanCertMap
 }
 
 // mergeDomainEntries merges domain entries into outputDomains and updates progress
@@ -385,7 +400,7 @@ func (s *Scanner) mergeDomainEntries(domainEntries []*DomainEntry, outputDomains
 		// Merge with existing entry if present
 		if existing, exists := outputDomains[domainEntry.Domain]; exists {
 			existing.Status = domainEntry.Status
-			existing.IsLive = domainEntry.IsLive
+			existing.Reachable = domainEntry.Reachable
 			existing.URL = domainEntry.URL
 			existing.IP = domainEntry.IP
 			existing.Redirect = domainEntry.Redirect
@@ -398,9 +413,9 @@ func (s *Scanner) mergeDomainEntries(domainEntries []*DomainEntry, outputDomains
 			outputDomains[domainEntry.Domain] = domainEntry
 		}
 
-		s.logInfo("%s domain %s (live: %t, status: %d)", logPrefix, domainEntry.Domain, domainEntry.IsLive, domainEntry.Status)
+		s.logInfo("%s domain %s (reachable: %t, status: %d)", logPrefix, domainEntry.Domain, domainEntry.Reachable, domainEntry.Status)
 
-		if domainEntry.IsLive {
+		if domainEntry.Reachable {
 			liveDomainCount++
 		}
 
@@ -422,5 +437,26 @@ func addSource(entry *DomainEntry, name string, sourceType string) {
 	entry.Sources = append(entry.Sources, types.Source{
 		Name: name,
 		Type: sourceType,
+	})
+}
+
+// addSourceWithCert adds a source with certificate info to a domain entry, avoiding duplicates
+func addSourceWithCert(entry *DomainEntry, name string, sourceType string, cert *types.CertificateInfo) {
+	// Check if source with same name, type and certificate already exists
+	for _, src := range entry.Sources {
+		if src.Name == name && src.Type == sourceType && src.Certificate != nil && cert != nil {
+			// Compare certificate details to check if it's the same
+			if src.Certificate.Subject == cert.Subject &&
+				src.Certificate.Issuer == cert.Issuer &&
+				src.Certificate.IssuedOn.Equal(cert.IssuedOn) {
+				return // Already exists
+			}
+		}
+	}
+	// Add new source
+	entry.Sources = append(entry.Sources, types.Source{
+		Name:        name,
+		Type:        sourceType,
+		Certificate: cert,
 	})
 }

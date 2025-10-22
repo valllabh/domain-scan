@@ -29,7 +29,8 @@ func addSource(entry *types.DomainEntry, name string, sourceType string) {
 
 // BulkCertificateAnalysisForScanner analyzes TLS certificates for multiple targets using bulk httpx call
 // If extractNewDomains is false, it will load certificate info but NOT extract new domains from SANs
-func BulkCertificateAnalysisForScanner(ctx context.Context, targets []string, keywords []string, extractNewDomains bool, logger *gologger.Logger) ([]*types.DomainEntry, []string, error) {
+// Returns: domain entries, new subdomains, map of subdomain->parent certificate info, error
+func BulkCertificateAnalysisForScanner(ctx context.Context, targets []string, keywords []string, extractNewDomains bool, logger *gologger.Logger) ([]*types.DomainEntry, []string, map[string]*types.CertificateInfo, error) {
 	var domainEntries []*types.DomainEntry
 	var subdomains []string
 	var resultMutex sync.Mutex
@@ -37,8 +38,11 @@ func BulkCertificateAnalysisForScanner(ctx context.Context, targets []string, ke
 	// Map to track domain entries by target
 	domainEntriesMap := make(map[string]*types.DomainEntry)
 
+	// Map to track which certificate each SAN came from
+	sanCertificateMap := make(map[string]*types.CertificateInfo)
+
 	if len(targets) == 0 {
-		return domainEntries, subdomains, nil
+		return domainEntries, subdomains, sanCertificateMap, nil
 	}
 
 	if logger != nil {
@@ -51,10 +55,10 @@ func BulkCertificateAnalysisForScanner(ctx context.Context, targets []string, ke
 	for _, target := range targets {
 		bareDomain := utils.ExtractBareDomain(target)
 		domainEntriesMap[bareDomain] = &types.DomainEntry{
-			Domain:  bareDomain,
-			Status:  0,
-			IsLive:  false,
-			Sources: []types.Source{{Name: "traced", Type: "passive"}},
+			Domain:    bareDomain,
+			Status:    0,
+			Reachable: false,
+			Sources:   []types.Source{{Name: "traced", Type: "passive"}},
 		}
 	}
 
@@ -85,17 +89,17 @@ func BulkCertificateAnalysisForScanner(ctx context.Context, targets []string, ke
 			if !exists {
 				// Fallback if domain wasn't pre-populated
 				domainEntry = &types.DomainEntry{
-					Domain:  bareDomain,
-					Status:  0,
-					IsLive:  false,
-					Sources: []types.Source{{Name: "traced", Type: "passive"}},
+					Domain:    bareDomain,
+					Status:    0,
+					Reachable: false,
+					Sources:   []types.Source{{Name: "traced", Type: "passive"}},
 				}
 				domainEntriesMap[bareDomain] = domainEntry
 			}
 
 			// Process ANY successful HTTP response
 			if result.Err == nil && result.StatusCode > 0 {
-				domainEntry.IsLive = true
+				domainEntry.Reachable = true
 				domainEntry.Status = result.StatusCode
 				domainEntry.URL = result.URL // Store the full URL (http:// or https://)
 
@@ -164,6 +168,8 @@ func BulkCertificateAnalysisForScanner(ctx context.Context, targets []string, ke
 					for _, san := range result.TLSData.SubjectAN {
 						if utils.MatchesKeywords(san, keywords) {
 							subdomains = append(subdomains, san)
+							// Track which certificate this SAN came from
+							sanCertificateMap[san] = domainEntry.Certificate
 						}
 					}
 
@@ -184,7 +190,7 @@ func BulkCertificateAnalysisForScanner(ctx context.Context, targets []string, ke
 		if logger != nil {
 			logger.Error().Msgf("Failed to validate httpx options: %v", err)
 		}
-		return domainEntries, subdomains, fmt.Errorf("failed to validate httpx options: %v", err)
+		return domainEntries, subdomains, sanCertificateMap, fmt.Errorf("failed to validate httpx options: %v", err)
 	}
 
 	// Create and run httpx runner
@@ -193,7 +199,7 @@ func BulkCertificateAnalysisForScanner(ctx context.Context, targets []string, ke
 		if logger != nil {
 			logger.Error().Msgf("Failed to create httpx runner: %v", err)
 		}
-		return domainEntries, subdomains, fmt.Errorf("failed to create httpx runner: %v", err)
+		return domainEntries, subdomains, sanCertificateMap, fmt.Errorf("failed to create httpx runner: %v", err)
 	}
 	defer httpxRunner.Close()
 
@@ -214,5 +220,5 @@ func BulkCertificateAnalysisForScanner(ctx context.Context, targets []string, ke
 			len(domainEntries), len(subdomains))
 	}
 
-	return domainEntries, subdomains, nil
+	return domainEntries, subdomains, sanCertificateMap, nil
 }

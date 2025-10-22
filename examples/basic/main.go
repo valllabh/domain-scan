@@ -32,7 +32,7 @@ func main() {
 
 	fmt.Printf("🌐 Active Web Services:\n")
 	for _, entry := range result.Domains {
-		if entry.IsLive {
+		if entry.Reachable {
 			fmt.Printf("- %s [%d]\n", entry.Domain, entry.Status)
 		}
 	}

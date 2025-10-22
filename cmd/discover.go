@@ -267,17 +267,32 @@ func outputResults(result *domainscan.AssetDiscoveryResult) error {
 		var sb strings.Builder
 		// Write summary header
 		sb.WriteString(fmt.Sprintf("\nDiscovery Results:\n"))
-		sb.WriteString(fmt.Sprintf("  Total Domains: %d\n", result.Statistics.TotalSubdomains))
-		sb.WriteString(fmt.Sprintf("  Live Services: %d\n", result.Statistics.ActiveServices))
-		sb.WriteString(fmt.Sprintf("  Traced Only:   %d\n\n", result.Statistics.TracedDomains))
+		sb.WriteString(fmt.Sprintf("  Discovered: %d domains (%d live, %d traced)\n\n",
+			result.Statistics.TotalSubdomains,
+			result.Statistics.ActiveServices,
+			result.Statistics.TracedDomains))
 
+		// Show live domains first
+		liveCount := 0
 		for _, entry := range result.Domains {
-			if entry.IsLive {
-				// Color live domains green with status code
+			if entry.Reachable {
+				liveCount++
 				sb.WriteString(fmt.Sprintf("%s \033[32m[LIVE:%d]\033[0m\n", entry.Domain, entry.Status))
-			} else {
-				// Show traced domains in gray
-				sb.WriteString(fmt.Sprintf("%s \033[90m[TRACED]\033[0m\n", entry.Domain))
+			}
+		}
+
+		// Show traced domains
+		if result.Statistics.TracedDomains > 0 {
+			sb.WriteString(fmt.Sprintf("\n%d traced domains (not HTTP accessible):\n", result.Statistics.TracedDomains))
+			tracedShown := 0
+			for _, entry := range result.Domains {
+				if !entry.Reachable && tracedShown < 10 {
+					sb.WriteString(fmt.Sprintf("  %s\033[90m [TRACED]\033[0m\n", entry.Domain))
+					tracedShown++
+				}
+			}
+			if result.Statistics.TracedDomains > 10 {
+				sb.WriteString(fmt.Sprintf("  ... and %d more (see domains.json for full list)\n", result.Statistics.TracedDomains-10))
 			}
 		}
 		output = []byte(sb.String())

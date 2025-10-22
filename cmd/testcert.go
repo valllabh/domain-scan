@@ -57,7 +57,7 @@ func runTestCert(cmd *cobra.Command, args []string) error {
 	// Run certificate analysis
 	fmt.Printf("Scanning %d targets...\n\n", len(targets))
 
-	domainEntries, allSubdomains, err := discovery.BulkCertificateAnalysisForScanner(
+	domainEntries, allSubdomains, _, err := discovery.BulkCertificateAnalysisForScanner(
 		ctx,
 		targets,
 		keywords,
@@ -78,7 +78,7 @@ func runTestCert(cmd *cobra.Command, args []string) error {
 	if len(domainEntries) > 0 {
 		fmt.Printf("✅ Live domains:\n")
 		for _, entry := range domainEntries {
-			if entry.IsLive {
+			if entry.Reachable {
 				fmt.Printf("  • %s (status: %d)\n", entry.Domain, entry.Status)
 			}
 		}

@@ -108,7 +108,13 @@ func LoadKeywords(domains []string, keywordsInArgument []string) []string {
 }
 
 // MatchesKeywords checks if a domain matches any of the provided keywords
+// and filters out invalid domains like wildcards
 func MatchesKeywords(domain string, keywords []string) bool {
+	// Filter out wildcard domains
+	if strings.Contains(domain, "*") {
+		return false
+	}
+
 	if len(keywords) == 0 {
 		return true // Accept all if no keywords specified
 	}

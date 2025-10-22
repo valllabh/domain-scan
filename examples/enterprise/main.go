@@ -70,7 +70,7 @@ func generateEnterpriseReport(result *domainscan.AssetDiscoveryResult) {
 	fmt.Printf("🌐 Active Services by Status:\n")
 	statusCounts := make(map[int]int)
 	for _, entry := range result.Domains {
-		if entry.IsLive {
+		if entry.Reachable {
 			statusCounts[entry.Status]++
 		}
 	}
@@ -93,7 +93,7 @@ func generateEnterpriseReport(result *domainscan.AssetDiscoveryResult) {
 	fmt.Printf("🎯 High-Value Targets:\n")
 	highValueKeywords := []string{"portal", "intranet", "internal"}
 	for _, entry := range result.Domains {
-		if entry.IsLive {
+		if entry.Reachable {
 			for _, keyword := range highValueKeywords {
 				if containsKeyword(entry.Domain, keyword) {
 					fmt.Printf("- %s [%d] - Contains '%s'\n", entry.Domain, entry.Status, keyword)
@@ -107,7 +107,7 @@ func generateEnterpriseReport(result *domainscan.AssetDiscoveryResult) {
 	// All discovered services
 	fmt.Printf("📝 Complete Service Inventory:\n")
 	for _, entry := range result.Domains {
-		if entry.IsLive {
+		if entry.Reachable {
 			fmt.Printf("- %s [%d]\n", entry.Domain, entry.Status)
 		}
 	}
