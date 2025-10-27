@@ -61,7 +61,7 @@ jobs:
 
       - name: Upload snapshot artifacts
         if: ${{ inputs.dry_run == true }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: snapshot-release
           path: dist/
